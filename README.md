@@ -14,7 +14,7 @@ SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question 
   LOTUS program.
 - **PLOP** (Morrila, the plan-level optimizer of the PLOP paper; not yet released) runs an automatic
   translation into its `semantic()` dialect. It needs the authors' DuckDB fork: `--plop-bin` (see
-  SWAN-AISQL's `sembench/PLOP_FORK.md` for the edits the fork needs to talk to the proxy).
+  SWAN-AISQL's `aisql-bench/PLOP_FORK.md` for the edits the fork needs to talk to the proxy).
 - **ThalamusDB** ([itrummer/thalamusdb](https://github.com/itrummer/thalamusdb), PyPI `thalamusdb` 0.1.15) runs
   an automatic translation into its `NLfilter` dialect, with its stop conditions lifted so its approximate
   processing runs to an exact result. Its dialect has boolean filters only, so it answers the 69 questions
@@ -173,11 +173,11 @@ mean over the supported questions.
 ## Results
 
 `results/gpt-5.6-luna/` holds the four systems' answers, scores and seconds on gpt-5.6-luna, replayed from
-the published cache of one back-to-back session (2026-10-03): mean quality 0.757 for SWAN-AISQL at 22,340
-LLM calls and 2,153 s over the 120 questions, 0.773 for BlendSQL at 59,564 calls and 4,359 s, 0.760 for LOTUS
-at 69,204 calls and 4,101 s, and 0.690 for PLOP at 25,604 calls and 10,431 s; 0.396 for ThalamusDB (0.689 on
-the 69 questions its filter-only dialect expresses) at 158,290 calls and 36,945 s, recorded the next night;
-and 0.769 for Palimpzest (Abacus optimizer) at 70,645 calls and 2,799 s, recorded on 2026-10-04. The model's verdicts bound the
+the published cache: mean quality 0.763 for SWAN-AISQL at 22,327 LLM calls and 2,331 s over the
+120 questions, 0.761 for BlendSQL at 59,620 calls and 4,608 s, 0.760 for LOTUS at 69,204 calls and
+4,101 s, 0.690 for PLOP at 25,604 calls and 10,431 s, 0.766 for Palimpzest (Abacus optimizer) at 70,933
+calls and 2,991 s, and 0.396 for ThalamusDB (0.689 on the 69 questions its filter-only dialect expresses) at
+158,290 calls and 36,945 s. The model's verdicts bound the
 quality column (that folder's README gives the earlier recordings); calls, cost and latency are the
 separation.
 SWAN 1.x results are in `swan1/results/`.
@@ -215,7 +215,7 @@ queries/                 the AISQL and oracle queries
 swan1/                   SWAN 1.x: its questions, per-system queries, results and the 2024 migration scripts
 results/gpt-5.6-luna/    SWAN 2.0 answers and scores for the four systems
 results/blendsql_2024/   the 2024 BlendSQL logs (5-shot logs in Git LFS)
-docs/                    SWAN2_DESIGN.md, SWAN2_AUTHORING.md, CHANGES.md
+docs/                    SWAN2_DESIGN.md, SWAN2_AUTHORING.md
 ```
 
 ## License

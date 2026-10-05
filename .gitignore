@@ -169,3 +169,5 @@ data/databases/masked/
 runs/
 .venv-thalamusdb
 .venv-palimpzest
+# local working notes, not published
+docs/CHANGES.md
