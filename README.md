@@ -49,16 +49,9 @@ scripts/run_lotus.sh
 uv run swan-bench report                          # the systems side by side
 ```
 
-Each script does everything its system needs, and skips what is already done:
-
-| step | SWAN-AISQL | BlendSQL | LOTUS |
-|---|---|---|---|
-| Python environment and databases (`uv sync`, `swan-bench prepare`) | ✓ | ✓, with BlendSQL | ✓, with LOTUS |
-| clone SWAN-AISQL next to this repository (`../SWAN-AISQL`) | ✓ | ✓ (for its serving stack) | ✓ (for its serving stack) |
-| build the SWAN-AISQL binary (about 25 minutes, once) | ✓ | | |
-| start litellm (:4000) and the cache proxy (:4001) | ✓ | ✓ | ✓ |
-| start the embedding server (:4002), which SWAN-AISQL's filter ordering needs | ✓ | | |
-| run the questions | ✓ | ✓ | ✓ |
+Each script sets up what its system needs and skips what is already done: the Python environment and the
+databases, a checkout of SWAN-AISQL next to this repository for its serving stack (litellm, the cache
+proxy and, for SWAN-AISQL itself, its binary and embedding server), then the questions.
 
 Arguments go to `swan-bench run`: `--qid` and `--db` pick questions, `--stub` runs with a local stand-in
 instead of a model (free, no key, no servers; its answers are meaningless). Results go to
