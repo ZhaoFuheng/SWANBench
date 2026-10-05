@@ -33,6 +33,11 @@ class AISQLFormError(ValueError):
     pass
 
 
+class Unsupported(AISQLFormError):
+    """The query uses something a system's dialect cannot express; the harness records the question as unsupported."""
+
+
+
 @dataclass
 class AICall:
     node: exp.Expression

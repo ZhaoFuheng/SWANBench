@@ -28,11 +28,26 @@ SWAN 2.0 measures how well a system plans its LLM calls, as well as its answers 
 - **Run scripts.** `scripts/run_{swan_aisql,blendsql,lotus}.sh` go from a fresh clone to results.
 - **Results refreshed (2026-10-02)** with SWAN-AISQL's `ai_filter` reasoning field and zero-shot BlendSQL:
   `results/gpt-5.6-luna/README.md`.
-- **Results are one back-to-back session with latency (2026-10-03).** All four systems ran the 120 questions
-  fresh, one after the other, through an empty recording cache, so `results/gpt-5.6-luna/` reports latency
-  (seconds per question, totals per database) next to quality, calls and cost, all from the same run; the
-  session is the published replay cache. The earlier separate runs (0.775 / 0.741 / 0.770 / 0.739 for
-  SWAN-AISQL / BlendSQL / LOTUS / PLOP) stay in its README as the noise reference.
+- **Results are replays of one published cache, with latency (2026-10-03).** All four systems ran the 120
+  questions fresh, one after the other, through an empty recording cache; the recording is the published
+  replay cache, and `results/gpt-5.6-luna/` holds each system's replay of it with the recorded latencies, so
+  quality, calls, cost and latency (seconds per question, totals per database) come from one recording and
+  reproduce. The earlier separate runs (0.775 / 0.741 / 0.770 / 0.739 for SWAN-AISQL / BlendSQL / LOTUS /
+  PLOP) stay in its README as the reference for what a fresh run moves.
+- **Palimpzest results (2026-10-04):** `results/gpt-5.6-luna/palimpzest/`, quality 0.769 (60 exact) at 70,645
+  calls, $9.76 and 2,799 s over the 120 questions, recorded on 2026-10-04 through the same proxy (its latency
+  therefore carries another day's provider load); on ThalamusDB's 69 questions 0.725.
+- **Palimpzest as a sixth system (2026-10-04).** `swan-bench run --system palimpzest` runs the query in written
+  order (as for LOTUS) with every AI call served by Palimpzest 1.5.3 under its Abacus optimizer (pareto plan
+  search; the sample-based cost model needs a validator the benchmark does not supply), through a
+  long-lived server in Palimpzest's own environment (`scripts/setup_palimpzest.sh`).
+- **ThalamusDB results (2026-10-04):** `results/gpt-5.6-luna/thalamusdb/`, 0.689 on the 69 questions it
+  expresses (0.396 over all 120), 158,290 calls; its README gives every system on the same 69.
+- **ThalamusDB as a fifth system (2026-10-03).** `swan-bench run --system thalamusdb` translates every
+  WHERE-clause `ai_filter` into ThalamusDB's `NLfilter` (`translate_thalamusdb.py`) and runs it in
+  ThalamusDB's own environment (`scripts/setup_thalamusdb.sh`, `thalamusdb_runner.py`) with its stop
+  conditions lifted, so its result is exact. Questions a dialect cannot express are now recorded as
+  unsupported (score 0) and `scores.json` carries the mean over the supported ones as well.
 - **PLOP as a fourth system (2026-10-03).** `swan-bench run --system plop --plop-bin <Morrila duckdb>` translates
   every query into PLOP's `semantic()` dialect (`translate_plop.py`) and runs it on the authors' fork over a
   parquet export of the databases; calls, tokens and an estimated cost come from the fork's log.

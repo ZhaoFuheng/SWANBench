@@ -24,6 +24,8 @@ quality with fewer calls, at lower cost, and sooner.
 | BlendSQL | an automatic translation of the query into BlendSQL (LLM ingredients in sqlite); BlendSQL plans it. Its `LLMMap` prompt is sent without BlendSQL's built-in one-shot example, so every system is zero-shot |
 | LOTUS | an automatic translation into the LOTUS program that follows the query's written order, with semantic operators over DataFrames; LOTUS has no planner, so the program is its plan |
 | PLOP | an automatic translation into Morrila's `semantic()` dialect (`translate_plop.py`), run on the authors' DuckDB fork in its DP cost-model mode over a parquet export of the databases; PLOP plans it. The fork is not released, so this system is optional and `swan-bench check` does not cover it (its prompts carry PLOP's own answer-format suffix) |
+| ThalamusDB | an automatic translation into ThalamusDB's `NLfilter(table.column, condition)` dialect (`translate_thalamusdb.py`), run by `thalamusdb_runner.py` in ThalamusDB's own environment with its stop conditions lifted (`max_error = 0`, no call or time cap), so its approximate processing runs to the exact result; ThalamusDB plans it (rows in batches of 20 per filter, all rows after its own SQL pruning). Its dialect has boolean WHERE-clause filters only, so 69 of the 120 questions are expressible; the others are recorded as unsupported. The runner prepares what ThalamusDB cannot parse itself, without changing the question: aliased tables become same-named temporary tables, CTEs are materialised (a CTE with a semantic predicate is run through ThalamusDB first), and column names with spaces are renamed in its copy of the database. `swan-bench check` does not cover it (its prompt frame is its own) |
+| Palimpzest | the query run in its written order as for LOTUS (`lotus_exec.py`), with every AI call handed to Palimpzest as a semantic-operator program over the rows it reaches (`sem_filter` / `sem_add_columns` / `sem_agg`, `palimpzest_ops_server.py`), whose physical plan its Abacus optimizer chooses (`optimizer_strategy=pareto`, MaxQuality, 20 workers; `--pz-optimizer none` turns the optimizer off) with its default cost model: Palimpzest runs its sample-based cost estimation only when given a validator or training set, which the benchmark does not supply, so no sampling calls are made. Palimpzest runs in its own environment as one server process per run; it prices the benchmark model at zero, so the meter's accounting is the one used. `swan-bench check` does not cover it |
 
 The translations are part of the benchmark, so no query author shapes a system's plan. Two checks keep them
 honest. A linter requires every AI call to have one fixed form built from a question and one context column;
@@ -74,7 +76,9 @@ value. It must return the gold answer, which shows the AISQL query is right when
   answer; for "any k" questions, precision over the rows returned with recall against at most k valid rows;
   otherwise set F1 of the rows against the gold rows. Values match regardless of column order, floats to 10
   significant digits, and URLs without the scheme, `www.`, percent-encoding and trailing slash that a model
-  cannot know. The headline is the mean over questions. Exact match is reported as well.
+  cannot know. The headline is the mean over questions. Exact match is reported as well. A question a
+  system's dialect cannot express scores 0 and is counted as unsupported; the mean over the supported
+  questions is reported next to it (`quality_supported` in `scores.json`).
 - **Calls, tokens, cost and latency** are counted the same way for every system by a local meter between
   the system and the model endpoint. Every system gets the same model and the same number of requests in
   flight, and questions run one at a time. Latency is the wall-clock time of a question from the system's
@@ -85,8 +89,11 @@ value. It must return the gold answer, which shows the AISQL query is right when
   replay off measures the system's own work only (planning, data, dispatch), which is what the quick-start
   runs through the cache show.
 - **Recording and replay.** Runs go through the SWAN-AISQL cache proxy, which records each answer with its
-  cost and latency. Replaying a run costs nothing and reproduces its answers, cost and latency, so the
-  systems can be compared side by side and rescored later.
+  cost and latency. Model inference at temperature 0 is treated as deterministic, so one cache is the single
+  source of answers and latencies for every system: replaying a run costs nothing and reproduces its
+  answers, cost and latency exactly, the systems can be compared side by side and rescored later, and a run
+  that asks the provider afresh is a different experiment (the model does not in fact answer identically
+  every time, so fresh runs move single-answer questions).
 
 ## Knobs
 
@@ -104,6 +111,8 @@ value. It must return the gold answer, which shows the AISQL query is right when
 | `--set NAME=VALUE` | `swan-bench run` | none | a SWAN-AISQL setting before each query (e.g. `ai_pullup=false`) |
 | `--duckdb-bin` | `swan-bench run`, `SWAN_AISQL_DUCKDB` | none | the SWAN-AISQL binary |
 | `--plop-bin` | `swan-bench run`, `SWAN_PLOP_BIN` | none | the Morrila (PLOP) fork's shell; `plop` also needs `--duckdb-bin` for the parquet export |
+| `--thalamusdb-python` | `swan-bench run`, `SWAN_THALAMUSDB_PYTHON` | `.venv-thalamusdb/bin/python` | the interpreter with thalamusdb installed (`scripts/setup_thalamusdb.sh`); `thalamusdb` also needs `--duckdb-bin` for the parquet export |
+| `--palimpzest-python`, `--pz-optimizer`, `--pz-policy` | `swan-bench run`, `SWAN_PALIMPZEST_PYTHON` | `.venv-palimpzest/bin/python`, `pareto`, `MaxQuality` | the interpreter with palimpzest installed (`scripts/setup_palimpzest.sh`); Abacus on (`pareto`) or off (`none`); its policy |
 | `SWAN_AISQL_DIR` | `scripts/run_*.sh` | `../SWAN-AISQL` | where the scripts find or clone SWAN-AISQL (binary, serving stack, embedding server) |
 | `--db`, `--qid` | `swan-bench run`, `check`, `lint` | all | restrict to databases or questions |
 | `--stub` | `swan-bench run` | off | answer with a local stub instead of a model, to test the setup for free |

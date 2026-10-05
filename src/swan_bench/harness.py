@@ -18,6 +18,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 from . import paths
+from .aisql import Unsupported
 from .data import load_query, load_questions
 from .execution import execute
 from .meter import Meter
@@ -55,10 +56,15 @@ SUMMED = ("requests", "fresh_calls", "errors", "prompt_tokens", "completion_toke
 
 def summarize(records: list[dict]) -> dict:
     out = {"correct": sum(r["match"] for r in records), "total": len(records),
-           "failed": sum(r["error"] is not None for r in records)}
+           "failed": sum(r["error"] is not None and not r.get("unsupported") for r in records)}
     out["accuracy"] = round(out["correct"] / out["total"], 4) if records else None
     scored = [r["quality"] for r in records if r.get("quality") is not None]
     out["quality"] = round(sum(scored) / len(scored), 4) if records and len(scored) == len(records) else None
+    # a system whose dialect cannot express a question scores 0 on it; the macro over the rest is kept too
+    supported = [r for r in records if not r.get("unsupported")]
+    out["unsupported"] = len(records) - len(supported)
+    sup_scored = [r["quality"] for r in supported if r.get("quality") is not None]
+    out["quality_supported"] = round(sum(sup_scored) / len(sup_scored), 4) if sup_scored and len(sup_scored) == len(supported) else None
     for k in SUMMED:
         vals = [r.get(k) for r in records if r.get(k) is not None]
         out[k] = round(sum(vals), 6) if vals else None
@@ -139,6 +145,9 @@ def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATA
                 record.update(quality(predicted, gold, q.gold_sql, query))
                 record["n_rows"], record["n_gold"] = len(predicted), len(gold)
                 record["rows"] = [list(r) for r in predicted[:MAX_STORED_ROWS]]
+            except Unsupported as ex:  # the system's dialect cannot express the question: wrong answer, counted apart
+                record["error"] = f"{type(ex).__name__}: {ex}"[:1000]
+                record["unsupported"] = True
             except Exception as ex:  # noqa: BLE001 -- a failing query is a wrong answer, recorded
                 record["error"] = f"{type(ex).__name__}: {ex}"[:1000]
             record["seconds"] = round(time.time() - start, 2)
@@ -158,6 +167,7 @@ def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATA
             system.close()
     report = write_scores(run_dir, meta)
     o = report["overall"]
-    print(f"{system_name}: quality {o['quality']}, {o['correct']}/{o['total']} exact, {o['requests']} calls, ${o['cost_usd']}, "
+    unsupported = f" ({o['unsupported']} unsupported; {o['quality_supported']} on the rest)" if o.get("unsupported") else ""
+    print(f"{system_name}: quality {o['quality']}{unsupported}, {o['correct']}/{o['total']} exact, {o['requests']} calls, ${o['cost_usd']}, "
           f"{o['seconds']}s -> {(run_dir / 'scores.json').relative_to(paths.ROOT)}", flush=True)
     return report

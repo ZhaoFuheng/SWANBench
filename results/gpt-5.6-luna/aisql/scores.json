@@ -1,10 +1,10 @@
 {
   "system": "aisql",
   "model": "gpt-5.6-luna",
-  "endpoint": "http://localhost:4023",
+  "endpoint": "http://localhost:4041",
   "options": {
     "concurrency": 20,
-    "duckdb_bin": "/Users/owner/Desktop/research/swan-ai-sql/SWAN-AISQL/build/reldebug/duckdb",
+    "duckdb_bin": "/Users/owner/Desktop/research/swan-ai-sql/SWAN-AISQL/serve/../build/reldebug/duckdb",
     "mock": false,
     "settings": {
       "ai_concurrency": 20
@@ -17,14 +17,14 @@
       "failed": 0,
       "accuracy": 0.3333,
       "quality": 0.7003,
-      "requests": 6030,
-      "fresh_calls": 5644,
-      "errors": 0,
-      "prompt_tokens": 709612,
-      "completion_tokens": 361999,
-      "reasoning_tokens": 150719,
-      "cost_usd": 0.576322,
-      "seconds": 582.07
+      "requests": 6037,
+      "fresh_calls": 0,
+      "errors": 7,
+      "prompt_tokens": 709629,
+      "completion_tokens": 361966,
+      "reasoning_tokens": 150695,
+      "cost_usd": 0.576285,
+      "seconds": 572.06
     },
     "superhero": {
       "correct": 7,
@@ -32,14 +32,14 @@
       "failed": 0,
       "accuracy": 0.2333,
       "quality": 0.5032,
-      "requests": 8228,
-      "fresh_calls": 5612,
-      "errors": 0,
-      "prompt_tokens": 818448,
-      "completion_tokens": 619659,
-      "reasoning_tokens": 333022,
-      "cost_usd": 0.90728,
-      "seconds": 826.09
+      "requests": 8244,
+      "fresh_calls": 0,
+      "errors": 14,
+      "prompt_tokens": 818626,
+      "completion_tokens": 619756,
+      "reasoning_tokens": 333104,
+      "cost_usd": 0.907431,
+      "seconds": 821.28
     },
     "formula_1": {
       "correct": 29,
@@ -47,14 +47,14 @@
       "failed": 0,
       "accuracy": 0.9667,
       "quality": 0.9952,
-      "requests": 2844,
-      "fresh_calls": 2751,
-      "errors": 0,
-      "prompt_tokens": 282093,
-      "completion_tokens": 161180,
-      "reasoning_tokens": 60246,
-      "cost_usd": 0.249834,
-      "seconds": 265.69
+      "requests": 3035,
+      "fresh_calls": 0,
+      "errors": 238,
+      "prompt_tokens": 277531,
+      "completion_tokens": 157539,
+      "reasoning_tokens": 58165,
+      "cost_usd": 0.244552,
+      "seconds": 260.98
     },
     "european_football_2": {
       "correct": 14,
@@ -62,14 +62,14 @@
       "failed": 0,
       "accuracy": 0.4667,
       "quality": 0.831,
-      "requests": 5296,
-      "fresh_calls": 5253,
-      "errors": 0,
-      "prompt_tokens": 584668,
-      "completion_tokens": 445598,
-      "reasoning_tokens": 255832,
-      "cost_usd": 0.651653,
-      "seconds": 506.98
+      "requests": 5339,
+      "fresh_calls": 0,
+      "errors": 56,
+      "prompt_tokens": 583054,
+      "completion_tokens": 444394,
+      "reasoning_tokens": 255179,
+      "cost_usd": 0.649884,
+      "seconds": 498.83
     }
   },
   "overall": {
@@ -78,13 +78,13 @@
     "failed": 0,
     "accuracy": 0.5,
     "quality": 0.7574,
-    "requests": 22398,
-    "fresh_calls": 19260,
-    "errors": 0,
-    "prompt_tokens": 2394821,
-    "completion_tokens": 1588436,
-    "reasoning_tokens": 799819,
-    "cost_usd": 2.385089,
-    "seconds": 2180.83
+    "requests": 22655,
+    "fresh_calls": 0,
+    "errors": 315,
+    "prompt_tokens": 2388840,
+    "completion_tokens": 1583655,
+    "reasoning_tokens": 797143,
+    "cost_usd": 2.378152,
+    "seconds": 2153.15
   }
 }

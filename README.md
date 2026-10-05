@@ -6,7 +6,7 @@ have been removed from the database. A system must recover the missing values wi
 with SQL.
 
 SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question has one query in AISQL
-(DuckDB SQL with `ai_filter`, `ai_classify`, `ai_complete` and `ai_agg`), and four systems run it:
+(DuckDB SQL with `ai_filter`, `ai_classify`, `ai_complete` and `ai_agg`), and six systems run it:
 
 - **SWAN-AISQL**, DuckDB with the `aisql` extension, runs it as written.
 - **BlendSQL** ([parkervg/blendsql](https://github.com/parkervg/blendsql)) runs an automatic translation.
@@ -15,6 +15,17 @@ SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question 
 - **PLOP** (Morrila, the plan-level optimizer of the PLOP paper; not yet released) runs an automatic
   translation into its `semantic()` dialect. It needs the authors' DuckDB fork: `--plop-bin` (see
   SWAN-AISQL's `sembench/PLOP_FORK.md` for the edits the fork needs to talk to the proxy).
+- **ThalamusDB** ([itrummer/thalamusdb](https://github.com/itrummer/thalamusdb), PyPI `thalamusdb` 0.1.15) runs
+  an automatic translation into its `NLfilter` dialect, with its stop conditions lifted so its approximate
+  processing runs to an exact result. Its dialect has boolean filters only, so it answers the 69 questions
+  whose AI calls are all `ai_filter`s in a WHERE clause; the rest count as unsupported (score 0, reported
+  apart). It runs in its own environment: `scripts/setup_thalamusdb.sh`.
+- **Palimpzest** ([mitdbg/palimpzest](https://github.com/mitdbg/palimpzest), PyPI `palimpzest` 1.5.3, with its
+  Abacus optimizer: pareto plan search with its default cost model, since its sample-based cost estimation
+  needs a validator or training set the benchmark does not supply) runs the query the way the LOTUS program
+  does, in written order, with every
+  AI call handed to Palimpzest as a semantic operator it plans. It runs in its own environment:
+  `scripts/setup_palimpzest.sh`.
 
 The questions give a planner choices (LIMITs, several AI filters, AI calls through joins, ...), and the
 databases repeat each entity about twice. docs/SWAN2_DESIGN.md explains the design and lists every knob.
@@ -51,11 +62,14 @@ Each script does everything its system needs, and skips what is already done:
 
 Arguments go to `swan-bench run`: `--qid` and `--db` pick questions, `--stub` runs with a local stand-in
 instead of a model (free, no key, no servers; its answers are meaningless). Results go to
-`runs/<system>/<model>/`. PLOP has no script, since its fork is not public: with the fork built, run it as
-in step 5 below.
+`runs/<system>/<model>/`. PLOP, ThalamusDB and Palimpzest have no script: PLOP's fork is not public, and the
+other two need their own Python environments (`scripts/setup_thalamusdb.sh`, `scripts/setup_palimpzest.sh`);
+run them as in step 5 below.
 
 **The cache proxy** records every answer with its cost and latency, and replays them when the same request
-comes again, so a rerun costs nothing and reports the same numbers. The recorded answers of all four
+comes again, so a rerun costs nothing and reports the same numbers. Model inference at temperature 0 is
+treated as deterministic: the cache is the single source of answers and latencies for every system, and the
+published results are replays of it. The recorded answers of all four
 systems on all 120 questions are published with SWAN-AISQL (its `serve/fetch_cache.sh` downloads them from
 Zenodo), so the results in this repository replay without a provider key. `SWAN_BENCH_ENDPOINT=http://localhost:4000`
 uses litellm alone, without recording. litellm is needed either way: it adapts each system's request to the
@@ -122,6 +136,8 @@ uv run swan-bench run --system aisql
 uv run swan-bench run --system blendsql
 uv run swan-bench run --system lotus
 uv run swan-bench run --system plop --plop-bin /path/to/morrila/duckdb --duckdb-bin "$SWAN_AISQL_DUCKDB"
+scripts/setup_thalamusdb.sh && uv run swan-bench run --system thalamusdb --duckdb-bin "$SWAN_AISQL_DUCKDB"
+scripts/setup_palimpzest.sh && uv run swan-bench run --system palimpzest
 uv run swan-bench report
 ```
 
@@ -150,15 +166,20 @@ with the proxy's latency replay on, which reproduce the recorded response times;
 quick-start runs through the cache) times the system's own work only. The cleanest comparison records the
 systems back to back in one session, as the published results were.
 The headline is the mean quality; exact match is reported too. `swan-bench rescore` recomputes both from a
-run's stored answers.
+run's stored answers. A question a system's dialect cannot express (ThalamusDB: anything but a WHERE-clause
+`ai_filter`) scores 0 and is counted as unsupported; `scores.json` and `swan-bench report` also give the
+mean over the supported questions.
 
 ## Results
 
-`results/gpt-5.6-luna/` holds the four systems' answers, scores and seconds from one back-to-back session
-on gpt-5.6-luna (2026-10-03): mean quality 0.757 for SWAN-AISQL at 22,398 LLM calls and 2,181 s over the 120
-questions, 0.773 for BlendSQL at 59,564 calls and 4,367 s, 0.751 for LOTUS at 69,211 calls and 4,190 s, and
-0.703 for PLOP at 25,645 calls and 10,264 s. Quality differences of 0.02–0.03 are within run-to-run noise
-(measured in that folder's README); calls, cost and latency are the separation.
+`results/gpt-5.6-luna/` holds the four systems' answers, scores and seconds on gpt-5.6-luna, replayed from
+the published cache of one back-to-back session (2026-10-03): mean quality 0.757 for SWAN-AISQL at 22,340
+LLM calls and 2,153 s over the 120 questions, 0.773 for BlendSQL at 59,564 calls and 4,359 s, 0.760 for LOTUS
+at 69,204 calls and 4,101 s, and 0.690 for PLOP at 25,604 calls and 10,431 s; 0.396 for ThalamusDB (0.689 on
+the 69 questions its filter-only dialect expresses) at 158,290 calls and 36,945 s, recorded the next night;
+and 0.769 for Palimpzest (Abacus optimizer) at 70,645 calls and 2,799 s, recorded on 2026-10-04. The model's verdicts bound the
+quality column (that folder's README gives the earlier recordings); calls, cost and latency are the
+separation.
 SWAN 1.x results are in `swan1/results/`.
 
 ## Data
@@ -187,9 +208,9 @@ Adding or editing a question: docs/SWAN2_AUTHORING.md.
 ## Repository layout
 
 ```
-scripts/                 run_swan_aisql.sh, run_blendsql.sh, run_lotus.sh
+scripts/                 run_swan_aisql.sh, run_blendsql.sh, run_lotus.sh, setup_thalamusdb.sh, setup_palimpzest.sh
 src/swan_bench/          the benchmark: database build, AISQL language, translators, meter, runner, scoring
-src/swan_bench/systems/  one adapter per system (SWAN-AISQL, BlendSQL, LOTUS, PLOP)
+src/swan_bench/systems/  one adapter per system (SWAN-AISQL, BlendSQL, LOTUS, PLOP, ThalamusDB, Palimpzest)
 queries/                 the AISQL and oracle queries
 swan1/                   SWAN 1.x: its questions, per-system queries, results and the 2024 migration scripts
 results/gpt-5.6-luna/    SWAN 2.0 answers and scores for the four systems

@@ -1,7 +1,7 @@
 {
   "system": "blendsql",
   "model": "gpt-5.6-luna",
-  "endpoint": "http://localhost:4023",
+  "endpoint": "http://localhost:4041",
   "options": {
     "concurrency": 20
   },
@@ -13,13 +13,13 @@
       "accuracy": 0.4,
       "quality": 0.7775,
       "requests": 9867,
-      "fresh_calls": 9051,
+      "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 887922,
       "completion_tokens": 507432,
       "reasoning_tokens": 416892,
       "cost_usd": 0.786504,
-      "seconds": 734.37
+      "seconds": 731.17
     },
     "superhero": {
       "correct": 6,
@@ -28,13 +28,13 @@
       "accuracy": 0.2,
       "quality": 0.4883,
       "requests": 13158,
-      "fresh_calls": 9179,
+      "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 937381,
       "completion_tokens": 558956,
       "reasoning_tokens": 452395,
       "cost_usd": 0.858225,
-      "seconds": 918.37
+      "seconds": 917.02
     },
     "formula_1": {
       "correct": 26,
@@ -43,13 +43,13 @@
       "accuracy": 0.8667,
       "quality": 0.975,
       "requests": 3738,
-      "fresh_calls": 3634,
+      "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 280428,
       "completion_tokens": 176345,
       "reasoning_tokens": 143114,
       "cost_usd": 0.267701,
-      "seconds": 291.1
+      "seconds": 291.33
     },
     "european_football_2": {
       "correct": 13,
@@ -58,13 +58,13 @@
       "accuracy": 0.4333,
       "quality": 0.8518,
       "requests": 32801,
-      "fresh_calls": 32113,
+      "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 2491998,
       "completion_tokens": 2155763,
       "reasoning_tokens": 1833854,
       "cost_usd": 3.085313,
-      "seconds": 2423.57
+      "seconds": 2419.84
     }
   },
   "overall": {
@@ -74,12 +74,12 @@
     "accuracy": 0.475,
     "quality": 0.7732,
     "requests": 59564,
-    "fresh_calls": 53977,
+    "fresh_calls": 0,
     "errors": 0,
     "prompt_tokens": 4597729,
     "completion_tokens": 3398496,
     "reasoning_tokens": 2846255,
     "cost_usd": 4.997743,
-    "seconds": 4367.41
+    "seconds": 4359.36
   }
 }

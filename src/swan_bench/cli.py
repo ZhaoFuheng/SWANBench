@@ -50,6 +50,10 @@ def _cmd_run(args) -> None:
         options.update(duckdb_bin=args.duckdb_bin, mock=args.stub, settings=settings)
     if args.system == "plop":
         options.update(plop_bin=args.plop_bin, duckdb_bin=args.duckdb_bin)
+    if args.system == "thalamusdb":
+        options.update(thalamusdb_python=args.thalamusdb_python, duckdb_bin=args.duckdb_bin)
+    if args.system == "palimpzest":
+        options.update(palimpzest_python=args.palimpzest_python, optimizer=args.pz_optimizer, policy=args.pz_policy)
     endpoint = None if args.stub else args.endpoint
     tag = args.tag or (f"{args.model.replace('/', '_')}" + ("_stub" if args.stub else ""))
     run(args.system, args.model, endpoint, databases=args.db or paths.DATABASES, qids=set(args.qid or []),
@@ -117,6 +121,8 @@ def _cmd_report(args) -> None:
     for system, tag, db, s in rows:
         tokens = (s["prompt_tokens"] or 0) + (s["completion_tokens"] or 0)
         qual = f"{s['quality']:.3f}" if s.get("quality") is not None else "-"
+        if s.get("unsupported"):  # macro over all questions, then over the ones the system's dialect expresses
+            qual += f" ({s['quality_supported']:.3f}/{s['total'] - s['unsupported']}q)"
         print(f"{system:9} {tag:18} {db:20} {qual:>7} {s['correct']:>3}/{s['total']:<4} "
               f"{s['requests'] or 0:8} {s['fresh_calls'] if s['fresh_calls'] is not None else '-':>7} "
               f"{tokens:11} {s['cost_usd'] or 0:8.2f} {s['seconds'] or 0:9.0f}")
@@ -155,6 +161,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--set", action="append", metavar="NAME=VALUE", help="aisql: an extra SET before each query")
     p.add_argument("--plop-bin", default=os.environ.get("SWAN_PLOP_BIN"),
                    help="plop: the Morrila fork's duckdb shell (default $SWAN_PLOP_BIN); needs --duckdb-bin for the parquet export")
+    p.add_argument("--palimpzest-python", default=os.environ.get("SWAN_PALIMPZEST_PYTHON"),
+                   help="palimpzest: the interpreter with palimpzest installed (default .venv-palimpzest/bin/python, see scripts/setup_palimpzest.sh)")
+    p.add_argument("--pz-optimizer", default="pareto", choices=["pareto", "none"],
+                   help="palimpzest: Abacus's pareto plan search (default) or no optimizer (none)")
+    p.add_argument("--pz-policy", default="MaxQuality", choices=["MaxQuality", "MinCost"], help="palimpzest: the optimizer's policy")
+    p.add_argument("--thalamusdb-python", default=os.environ.get("SWAN_THALAMUSDB_PYTHON"),
+                   help="thalamusdb: the interpreter with thalamusdb installed (default .venv-thalamusdb/bin/python, "
+                        "see scripts/setup_thalamusdb.sh); needs --duckdb-bin for the parquet export")
     p.set_defaults(func=_cmd_run)
 
     p = sub.add_parser("lint", help="check that every AISQL query is in the SWAN 2.0 prompt form")

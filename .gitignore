@@ -167,3 +167,5 @@ data/databases/bird/
 data/databases/original/
 data/databases/masked/
 runs/
+.venv-thalamusdb
+.venv-palimpzest
