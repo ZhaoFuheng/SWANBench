@@ -36,7 +36,7 @@ You need [uv](https://docs.astral.sh/uv/), git and an OpenAI API key. For SWAN-A
 ninja and a C++ compiler, to build it once.
 
 ```bash
-git clone https://github.com/ZhaoFuheng/SWAN && cd SWAN
+git clone https://github.com/ZhaoFuheng/SWANBench && cd SWANBench
 cp .env.example .env                  # put your OPENAI_API_KEY in .env (git-ignored)
 
 scripts/run_swan_aisql.sh --qid superhero-05     # one question, to check the setup
