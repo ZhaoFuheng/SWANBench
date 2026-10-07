@@ -64,7 +64,10 @@ comes again, so a rerun costs nothing and reports the same numbers. Model infere
 treated as deterministic: the cache is the single source of answers and latencies for every system, and the
 published results are replays of it. The recorded answers of all four
 systems on all 120 questions are published with SWAN-AISQL (its `serve/fetch_cache.sh` downloads them from
-Zenodo), so the results in this repository replay without a provider key. `SWAN_BENCH_ENDPOINT=http://localhost:4000`
+Zenodo), so the results in this repository replay without a provider key. **Not yet for the tables below:** the
+cache version on Zenodo today is the first one, from 2026-10-02, and the recordings behind the results in this
+repository were made after it; the next version, which holds them, is being prepared. Until it is published a
+replay of these results meets prompts the fetched cache does not have, which need a provider key. `SWAN_BENCH_ENDPOINT=http://localhost:4000`
 uses litellm alone, without recording. litellm is needed either way: it adapts each system's request to the
 model (OpenAI itself rejects some of the parameters BlendSQL and SWAN-AISQL send). Other variables:
 `SWAN_AISQL_DIR` (where SWAN-AISQL is or goes) and `SWAN_AISQL_DUCKDB` (a binary already built).
@@ -153,20 +156,20 @@ Each question gets a quality score from 0 to 1, following SemBench (`src/swan_be
 Rows match regardless of column order, floats to 10 significant digits, and URLs without their scheme,
 `www.`, percent-encoding and trailing slash. A query that fails scores 0.
 
-Besides quality and exact match, every run records per question the LLM calls, tokens, cost and **latency**
+Besides quality, every run records per question the LLM calls, tokens, cost and **latency**
 (wall-clock seconds, model response times included). Latency is reported from fresh runs, or from replays
 with the proxy's latency replay on, which reproduce the recorded response times; a replay without it (the
 quick-start runs through the cache) times the system's own work only. The cleanest comparison records the
 systems back to back in one session, as the published results were.
-The headline is the mean quality; exact match is reported too. `swan-bench rescore` recomputes both from a
-run's stored answers. A question a system's dialect cannot express (ThalamusDB: anything but a WHERE-clause
+The headline is the mean quality. `swan-bench rescore` recomputes it from a run's stored answers. A question a
+system's dialect cannot express (ThalamusDB: anything but a WHERE-clause
 `ai_filter`) scores 0 and is counted as unsupported; `scores.json` and `swan-bench report` also give the
 mean over the supported questions.
 
 ## Results
 
 `results/gpt-5.6-luna/` holds the four systems' answers, scores and seconds on gpt-5.6-luna, replayed from
-the published cache: mean quality 0.763 for SWAN-AISQL at 22,327 LLM calls and 2,331 s over the
+the published cache: mean quality 0.755 for SWAN-AISQL at 19,695 LLM calls and 2,055 s over the
 120 questions, 0.761 for BlendSQL at 59,620 calls and 4,608 s, 0.760 for LOTUS at 69,204 calls and
 4,101 s, 0.690 for PLOP at 25,604 calls and 10,431 s, 0.766 for Palimpzest (Abacus optimizer) at 70,933
 calls and 2,991 s, and 0.396 for ThalamusDB (0.689 on the 69 questions its filter-only dialect expresses) at
