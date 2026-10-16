@@ -12,9 +12,10 @@ SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question 
 - **BlendSQL** ([parkervg/blendsql](https://github.com/parkervg/blendsql)) runs an automatic translation.
 - **LOTUS** ([lotus-data/lotus](https://github.com/lotus-data/lotus)) runs an automatic translation into a
   LOTUS program.
-- **PLOP** (Morrila, the plan-level optimizer of the PLOP paper; not yet released) runs an automatic
-  translation into its `semantic()` dialect. It needs the authors' DuckDB fork: `--plop-bin` (see
-  SWAN-AISQL's `aisql-bench/PLOP_FORK.md` for the edits the fork needs to talk to the proxy).
+- **PLOP** (Morrila, the plan-level optimizer of the PLOP paper; the authors' DuckDB fork at
+  [DMoRanSky/Morrila](https://github.com/DMoRanSky/Morrila)) runs an automatic translation into its
+  `semantic()` dialect. `--plop-bin` names the fork's shell, built with the three edits that let it talk to
+  the proxy (SWAN-AISQL's `aisql-bench/plop_fork.patch`, explained in `PLOP_FORK.md`).
 - **ThalamusDB** ([itrummer/thalamusdb](https://github.com/itrummer/thalamusdb), PyPI `thalamusdb` 0.1.15) runs
   an automatic translation into its `NLfilter` dialect, with its stop conditions lifted so its approximate
   processing runs to an exact result. Its dialect has boolean filters only, so it answers the 69 questions
@@ -55,8 +56,8 @@ proxy and, for SWAN-AISQL itself, its binary and embedding server), then the que
 
 Arguments go to `swan-bench run`: `--qid` and `--db` pick questions, `--stub` runs with a local stand-in
 instead of a model (free, no key, no servers; its answers are meaningless). Results go to
-`runs/<system>/<model>/`. PLOP, ThalamusDB and Palimpzest have no script: PLOP's fork is not public, and the
-other two need their own Python environments (`scripts/setup_thalamusdb.sh`, `scripts/setup_palimpzest.sh`);
+`runs/<system>/<model>/`. PLOP, ThalamusDB and Palimpzest have no script: PLOP needs its fork built and named
+with `--plop-bin`, and the other two need their own Python environments (`scripts/setup_thalamusdb.sh`, `scripts/setup_palimpzest.sh`);
 run them as in step 5 below.
 
 **The cache proxy** records every answer with its cost and latency, and replays them when the same request

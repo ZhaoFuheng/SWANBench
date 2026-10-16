@@ -1,8 +1,8 @@
 """PLOP (Morrila): runs the question's AISQL query translated into its dialect (`translate_plop.py`) on the
 authors' DuckDB fork, in its DP cost-model mode.
 
-The fork is not released, so this adapter needs its shell (`--plop-bin` / `SWAN_PLOP_BIN`), built with the
-endpoint/model/answer-text edits listed in SWAN-AISQL's `aisql-bench/PLOP_FORK.md`. The fork cannot open the
+The fork is public (github.com/DMoRanSky/Morrila); this adapter needs its shell (`--plop-bin` / `SWAN_PLOP_BIN`),
+built with the endpoint/model/answer-text edits in SWAN-AISQL's `aisql-bench/plop_fork.patch` (see `PLOP_FORK.md`). The fork cannot open the
 benchmark's DuckDB files (a newer storage format), so each masked database is exported once to parquet
 (`data/databases/masked/<db>/parquet/`) and read through views. Calls, tokens and an estimated cost come from
 the fork's own log; its `/v1/responses` requests pass through the meter uncounted and unpriced.
