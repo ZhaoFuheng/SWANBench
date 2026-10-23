@@ -3,11 +3,16 @@
 Every system talks to an OpenAI-compatible endpoint. The runner points the system at a `Meter` instead,
 which forwards each request to the real endpoint and counts it the same way for every system: requests,
 tokens (from the response's `usage`) and cost (from litellm's `x-litellm-response-cost` header, which the
-SWAN-AISQL cache proxy replays on a cache hit). A streamed response carries no cost header: its cost is
+SWAN-AISQL cache proxy replays on a cache hit). Both OpenAI envelopes count: a chat completion
+(`/chat/completions`) and a Responses API call (`/responses`, which SWAN-AISQL uses for its prefix-cache
+writes and warm reads). A Responses `usage` (input_tokens, output_tokens, input_tokens_details.cached_tokens,
+output_tokens_details.reasoning_tokens) is folded into the chat-completion counters, so a system's totals
+do not depend on which envelope it chose. A streamed response carries no cost header: its cost is
 priced from the token usage in its last chunk with `PRICES`, which are litellm's prices. The runner reads and
 resets the counters around each query.
 
-With `upstream=None` the meter answers every chat request itself with a deterministic 'True' or 'False'.
+With `upstream=None` the meter answers every chat or Responses request itself with a deterministic 'True'
+or 'False'.
 That checks that a system's queries parse and run without any model.
 """
 
@@ -28,8 +33,49 @@ PRICES = {"gpt-5.6-luna": (2e-07, 2e-08, 1.2e-06)}
 
 COUNTERS = ("requests", "errors", "prompt_tokens", "completion_tokens", "reasoning_tokens", "cost_usd")
 
+#: paths whose POSTs are LLM calls (both OpenAI envelopes); embeddings and anything else are not metered
+METERED_PATHS = ("/chat/completions", "/responses")
+
+
+def is_responses_request(body: dict) -> bool:
+    """A Responses API body (`input`/`instructions`) rather than a chat completion (`messages`)."""
+    return isinstance(body, dict) and "input" in body and "messages" not in body
+
+
+def responses_request_as_chat(body: dict) -> dict:
+    """The chat-completion body of a Responses request: instructions become the system message, the input
+    items (role/content, or a bare string) the messages. A content array passes through unchanged."""
+    messages = []
+    if body.get("instructions"):
+        messages.append({"role": "system", "content": body["instructions"]})
+    items = body.get("input") or []
+    if isinstance(items, str):
+        items = [{"role": "user", "content": items}]
+    for item in items:
+        if isinstance(item, dict) and "role" in item:
+            messages.append({"role": item["role"], "content": item.get("content", "")})
+    chat = {k: v for k, v in body.items() if k not in ("input", "instructions", "text", "store", "reasoning",
+                                                       "prompt_cache_options")}
+    chat["messages"] = messages
+    return chat
+
+
+def chat_completion_as_responses(completion: dict) -> dict:
+    """A chat completion as the Responses body the same request would have received."""
+    text = completion["choices"][0]["message"]["content"]
+    u = completion.get("usage") or {}
+    return {"id": completion.get("id", "stub"), "object": "response", "created_at": completion.get("created"),
+            "model": completion.get("model"), "status": "completed",
+            "output": [{"type": "message", "role": "assistant", "status": "completed",
+                        "content": [{"type": "output_text", "text": text, "annotations": []}]}],
+            "usage": {"input_tokens": u.get("prompt_tokens", 0), "output_tokens": u.get("completion_tokens", 0),
+                      "total_tokens": u.get("total_tokens", 0),
+                      "input_tokens_details": {"cached_tokens": 0}, "output_tokens_details": {"reasoning_tokens": 0}}}
+
 
 def _stub_completion(body: dict, responder=None) -> dict:
+    if is_responses_request(body):
+        body = responses_request_as_chat(body)
     if responder is not None:
         answer = responder(body)
     else:
@@ -102,22 +148,47 @@ class Meter:
             return None
 
     @staticmethod
-    def usage_of(body: bytes) -> dict:
-        """The `usage` of a chat completion, or of a streamed one (server-sent events; usage in the last chunk)."""
+    def normalize_usage(usage: dict) -> dict:
+        """A Responses API `usage` in chat-completion terms (prompt/completion tokens, cached and reasoning
+        details); a chat-completion usage passes through unchanged."""
+        if not isinstance(usage, dict) or "input_tokens" not in usage:
+            return usage if isinstance(usage, dict) else {}
+        in_det = usage.get("input_tokens_details") or {}
+        out_det = usage.get("output_tokens_details") or {}
+        return {"prompt_tokens": usage.get("input_tokens") or 0, "completion_tokens": usage.get("output_tokens") or 0,
+                "total_tokens": usage.get("total_tokens") or 0,
+                "prompt_tokens_details": {"cached_tokens": in_det.get("cached_tokens") or 0},
+                "completion_tokens_details": {"reasoning_tokens": out_det.get("reasoning_tokens") or 0}}
+
+    @staticmethod
+    def _usage_in(obj) -> dict:
+        """The usage carried by one JSON body or stream event: a completion's `usage`, or the `usage` of the
+        `response` inside a Responses stream event (response.completed)."""
+        if not isinstance(obj, dict):
+            return {}
+        usage = obj.get("usage")
+        if not usage and isinstance(obj.get("response"), dict):
+            usage = obj["response"].get("usage")
+        return usage if isinstance(usage, dict) else {}
+
+    @classmethod
+    def usage_of(cls, body: bytes) -> dict:
+        """The `usage` of a chat completion or Responses call, plain or streamed (server-sent events; usage in
+        the last chunk or the response.completed event), in chat-completion terms."""
         text = body.decode("utf-8", "replace").lstrip()
-        if text.startswith("data:"):
+        if text.startswith("data:") or text.startswith("event:"):
             usage = {}
             for line in text.splitlines():
                 line = line.strip()
                 if line.startswith("data:") and line[5:].strip() not in ("", "[DONE]"):
                     try:
-                        usage = json.loads(line[5:]).get("usage") or usage
-                    except (ValueError, AttributeError):
+                        usage = cls._usage_in(json.loads(line[5:])) or usage
+                    except ValueError:
                         pass
-            return usage
+            return cls.normalize_usage(usage)
         try:
-            return json.loads(text).get("usage") or {}
-        except (ValueError, AttributeError):
+            return cls.normalize_usage(cls._usage_in(json.loads(text)))
+        except ValueError:
             return {}
 
     @staticmethod
@@ -195,7 +266,10 @@ class Meter:
                     except Exception as ex:  # noqa: BLE001 -- a responder bug is an HTTP 500, not a dead thread
                         error = json.dumps({"error": {"message": f"responder: {type(ex).__name__}: {ex}"}}).encode()
                         return self._reply(500, error, {"Content-Type": "application/json"})
-                    if request.get("stream"):
+                    if is_responses_request(request):
+                        body = json.dumps(chat_completion_as_responses(completion)).encode()
+                        headers = {"Content-Type": "application/json"}
+                    elif request.get("stream"):
                         body, headers = _as_stream(completion), {"Content-Type": "text/event-stream"}
                     else:
                         body, headers = json.dumps(completion).encode(), {"Content-Type": "application/json"}
@@ -203,7 +277,7 @@ class Meter:
                 else:
                     status, body, headers = self._forward("POST", raw)
                     headers = {k: headers[k] for k in _KEEP_RESPONSE_HEADERS if k in headers}
-                if self.path.endswith("/chat/completions"):
+                if self.path.split("?")[0].endswith(METERED_PATHS):
                     try:
                         model = json.loads(raw or b"{}").get("model") or ""
                     except ValueError:

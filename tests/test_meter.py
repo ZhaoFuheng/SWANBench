@@ -1,4 +1,4 @@
-"""The meter counts streamed and plain chat completions the same way."""
+"""The meter counts streamed and plain chat completions, and Responses API calls, the same way."""
 
 import json
 import urllib.request
@@ -29,3 +29,49 @@ def test_stub_meter_answers_and_counts():
         assert meter.snapshot()["requests"] == 1
         meter.reset()
         assert meter.snapshot()["requests"] == 0
+
+
+RESPONSES_USAGE = {"input_tokens": 1000, "input_tokens_details": {"cached_tokens": 500}, "output_tokens": 100,
+                   "output_tokens_details": {"reasoning_tokens": 40}, "total_tokens": 1100}
+
+
+def test_responses_usage_is_folded_into_chat_counters():
+    usage = Meter.usage_of(json.dumps({"object": "response", "usage": RESPONSES_USAGE}).encode())
+    assert usage["prompt_tokens"] == 1000 and usage["completion_tokens"] == 100
+    assert usage["prompt_tokens_details"]["cached_tokens"] == 500
+    assert usage["completion_tokens_details"]["reasoning_tokens"] == 40
+    # priced like the same chat completion
+    chat = {"prompt_tokens": 1000, "prompt_tokens_details": {"cached_tokens": 500}, "completion_tokens": 100}
+    assert Meter.price("gpt-5.6-luna", usage) == Meter.price("gpt-5.6-luna", chat)
+
+
+def test_streamed_responses_usage_comes_from_the_completed_event():
+    body = (b'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"x"}\n\n'
+            b'event: response.completed\ndata: ' + json.dumps({"type": "response.completed",
+                                                              "response": {"usage": RESPONSES_USAGE}}).encode()
+            + b"\n\n")
+    assert Meter.usage_of(body)["prompt_tokens"] == 1000
+
+
+def _post(url: str, body: dict) -> dict:
+    req = urllib.request.Request(url, method="POST", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    return json.load(urllib.request.urlopen(req))
+
+
+def test_stub_meter_answers_responses_requests_and_counts_them():
+    body = {"model": "m", "instructions": "answer", "input": [{"role": "user", "content": "hi"}], "store": False}
+    with Meter(None) as meter:
+        answer = _post(meter.url + "/v1/responses", body)
+        assert answer["object"] == "response"
+        assert answer["output"][0]["content"][0]["text"] in ("True", "False")
+        assert meter.snapshot()["requests"] == 1
+        # the stub answers a Responses request exactly as it answers the same chat completion
+        chat = {"model": "m", "messages": [{"role": "system", "content": "answer"}, {"role": "user", "content": "hi"}]}
+        assert _post(meter.url + "/v1/chat/completions", chat)["choices"][0]["message"]["content"] == \
+            answer["output"][0]["content"][0]["text"]
+        # a forwarded Responses call is metered like a forwarded chat completion
+        with Meter(None) as upstream, Meter(upstream.url) as forwarder:
+            _post(forwarder.url + "/v1/responses", body)
+            _post(forwarder.url + "/v1/chat/completions", chat)
+            assert forwarder.snapshot()["requests"] == 2 and forwarder.snapshot()["errors"] == 0
