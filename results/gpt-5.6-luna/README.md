@@ -6,8 +6,7 @@ calls, cost and latency come from one recording and reproduce from it. LOTUS 1.2
 cost-model mode) were recorded in one session on 2026-10-03; ThalamusDB 0.1.15 (exact mode) on
 2026-10-03/04; BlendSQL 0.1.27 and Palimpzest 1.5.3 (Abacus optimizer) on 2026-10-05; SWAN-AISQL on 2026-10-23 (DuckDB 2.0.0, `ai_api = auto`). Quality is defined in the repository README. Per system,
 `answers.jsonl` holds each question's answer, calls, tokens, cost and seconds, and `scores.json` the totals
-per database. The cache version on Zenodo today (the first, from 2026-10-02) predates these recordings; the next
-version, which holds them, is being prepared, and until then a replay of this folder needs a provider key.
+per database. The published cache (its latest version on Zenodo) holds these recordings, so this folder replays from it without a provider key.
 
 | database | LOTUS | BlendSQL | Palimpzest | ThalamusDB | PLOP-DP | SWAN-AISQL |
 |---|---|---|---|---|---|---|

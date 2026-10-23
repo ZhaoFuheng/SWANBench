@@ -63,12 +63,9 @@ run them as in step 5 below.
 **The cache proxy** records every answer with its cost and latency, and replays them when the same request
 comes again, so a rerun costs nothing and reports the same numbers. Model inference at temperature 0 is
 treated as deterministic: the cache is the single source of answers and latencies for every system, and the
-published results are replays of it. The recorded answers of all four
-systems on all 120 questions are published with SWAN-AISQL (its `serve/fetch_cache.sh` downloads them from
-Zenodo), so the results in this repository replay without a provider key. **Not yet for the tables below:** the
-cache version on Zenodo today is the first one, from 2026-10-02, and the recordings behind the results in this
-repository were made after it; the next version, which holds them, is being prepared. Until it is published a
-replay of these results meets prompts the fetched cache does not have, which need a provider key. `SWAN_BENCH_ENDPOINT=http://localhost:4000`
+published results are replays of it. The recorded answers of every
+system on all 120 questions are published with SWAN-AISQL (its `serve/fetch_cache.sh` downloads the latest
+version from Zenodo), so the results in this repository replay without a provider key. `SWAN_BENCH_ENDPOINT=http://localhost:4000`
 uses litellm alone, without recording. litellm is needed either way: it adapts each system's request to the
 model (OpenAI itself rejects some of the parameters BlendSQL and SWAN-AISQL send). Other variables:
 `SWAN_AISQL_DIR` (where SWAN-AISQL is or goes) and `SWAN_AISQL_DUCKDB` (a binary already built).
