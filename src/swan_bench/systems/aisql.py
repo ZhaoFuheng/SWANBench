@@ -37,6 +37,10 @@ def duckdb_path(db: str) -> Path:
     return paths.MASKED_DIR / db / f"{db}.duckdb"
 
 
+#: DuckDB 2.0's shell turns on an "agent mode" (output truncated to 1,000 rows / 10,000 bytes) when the environment
+#: carries an AI coding agent's marker (AI_AGENT, AGENT, ...) and stdout is a pipe: every CLI we spawn pins it off.
+_NO_AGENT_ENV = {**os.environ, "DUCKDB_AGENT_MODE": "0"}
+
 def ensure_duckdb(db: str, duckdb_bin: str, force: bool = False) -> Path:
     target = duckdb_path(db)
     source = paths.require_database(db, masked=True)
@@ -63,14 +67,14 @@ def ensure_duckdb(db: str, duckdb_bin: str, force: bool = False) -> Path:
             cols = ", ".join(f"{_quote(c)} {duckdb_type(t)}" for c, t in columns)
             script.append(f"CREATE TABLE {_quote(table)} ({cols});\n"
                           f"COPY {_quote(table)} FROM '{file}' (HEADER, NULL '{NULL}', QUOTE '\"', ESCAPE '\"');")
-        p = subprocess.run([duckdb_bin, "-bail", str(target)], input="\n".join(script), text=True,
+        p = subprocess.run([duckdb_bin, "-bail", str(target)], input="\n".join(script), text=True, env=_NO_AGENT_ENV,
                            capture_output=True)
         if p.returncode != 0:
             target.unlink(missing_ok=True)
             raise RuntimeError(f"converting {db} to DuckDB failed: {p.stderr.strip()[-500:]}")
     con.close()
     check = "\n".join(f"SELECT '{t}', count(*) FROM {_quote(t)};" for t in tables)
-    p = subprocess.run([duckdb_bin, "-readonly", "-csv", "-noheader", str(target)], input=check, text=True,
+    p = subprocess.run([duckdb_bin, "-readonly", "-csv", "-noheader", str(target)], input=check, text=True, env=_NO_AGENT_ENV,
                        capture_output=True)
     got = {line.split(",")[0]: int(line.split(",")[1]) for line in p.stdout.split()}
     if got != counts:
@@ -134,8 +138,10 @@ class AISQLSystem:
                       "SELECT (sum(llm_calls) - sum(embed_calls))::BIGINT AS llm_calls, "
                       "sum(cache_hits)::BIGINT AS cache_hits, sum(failed_calls)::BIGINT AS failed_calls, "
                       "sum(total_tokens)::BIGINT AS total_tokens, sum(cost_usd) AS cost_usd FROM ai_usage();\n")
+            # DuckDB 2.0's shell turns on an "agent mode" (output truncated to 1,000 rows / 10,000 bytes) when the
+            # environment carries an AI coding agent's marker and stdout is a pipe: pin it off
             p = subprocess.run([self.duckdb_bin, "-readonly", "-bail", str(db_file)], input=script, text=True,
-                               capture_output=True, timeout=self.timeout)
+                               capture_output=True, timeout=self.timeout, env=_NO_AGENT_ENV)
             rows = _json_rows(out)
             types = [r[1] for r in _json_rows(desc)]
             numeric = [i for i, t in enumerate(types) if t.split("(")[0] in _NUMERIC_AS_TEXT]
