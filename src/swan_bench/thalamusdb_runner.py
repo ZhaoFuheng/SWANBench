@@ -14,9 +14,13 @@ runner prepares the query for it, without changing what is asked:
   semantic predicate is evaluated exactly once, in order;
 - the remaining query runs through ThalamusDB (or plain DuckDB when it has no semantic predicate left).
 ThalamusDB's stop conditions (default: 1,000 calls, 600 s) are lifted so that it processes every row and
-its result is exact (its own `max_error = 0`); a `LIMIT k`, which ThalamusDB strips to drive its progress
-loop, is applied to the rows it returns. ThalamusDB's progress output goes to stderr; stdout carries one
-JSON object: {"columns", "rows", "llm_calls", "input_tokens", "output_tokens", "rows_per_filter"}.
+its result is exact (its own `max_error = 0`). A `LIMIT k` ThalamusDB strips to drive its progress loop:
+it stops as soon as k rows are certain, which is any k passers -- right for an unordered LIMIT, wrong under
+an `ORDER BY`, where the k-th certain row need not be the k-th row in order. An ordered LIMIT is therefore
+hidden from ThalamusDB (it then evaluates every row) and applied to the complete, ordered result; an
+unordered one is applied to the rows ThalamusDB returns. ThalamusDB's progress output goes to stderr;
+stdout carries one JSON object: {"columns", "rows", "llm_calls", "input_tokens", "output_tokens",
+"rows_per_filter"}.
 """
 import json
 import math
@@ -34,6 +38,21 @@ def _py(value):
     if value is not None and type(value).__name__ in ("Timestamp", "NaTType", "Timedelta", "date", "datetime"):
         return None if str(value) == "NaT" else str(value)
     return value
+
+
+def hide_ordered_limit(sql: str) -> tuple[str, int | None]:
+    """`... ORDER BY x LIMIT k` -> (`... ORDER BY x`, k): the LIMIT ThalamusDB must not see, because its
+    progress loop stops at the first k certain rows whatever the order asks for. A LIMIT without ORDER BY, a
+    non-literal LIMIT, or an OFFSET is left in place (any k passers satisfy an unordered LIMIT)."""
+    ast = sqlglot.parse_one(sql, read="duckdb")
+    limit = ast.args.get("limit")
+    if limit is None or ast.args.get("order") is None or ast.args.get("offset") is not None:
+        return sql, None
+    value = limit.expression
+    if not (isinstance(value, exp.Literal) and value.this.isdecimal()):
+        return sql, None
+    ast.set("limit", None)
+    return ast.sql(dialect="duckdb"), int(value.this)
 
 
 def _has_nl(node: exp.Expression) -> bool:
@@ -76,17 +95,37 @@ class Runner:
         """One ThalamusDB execution; returns a DataFrame."""
         from tdb.queries.query import Query
 
+        sql, ordered_k = hide_ordered_limit(sql)  # ThalamusDB evaluates every row; the LIMIT is applied below
         query = Query(self.db, sql)
         if not query.semantic_predicates:
-            return self.db.execute2df(sql)
+            return self.db.execute2df(sql if ordered_k is None else f"{sql} LIMIT {ordered_k}")
         self.predicates += [p.sql for p in query.semantic_predicates]
-        df, counters = self.engine.run(query, self.constraints)
+        # The engine's retrieval result is the intersection of its candidate results, rebuilt from a set: the
+        # rows are right once every row is evaluated, their order is not. Keep the operators the engine built
+        # (its `_results` receives them) so the final rows can be read back through its ordered SQL rewrite.
+        operators = []
+        engine_results = self.engine._results
+
+        def capturing(query_, semantic_filters):
+            operators[:] = semantic_filters
+            return engine_results(query_, semantic_filters)
+
+        self.engine._results = capturing
+        try:
+            df, counters = self.engine.run(query, self.constraints)
+        finally:
+            self.engine._results = engine_results
         self.calls += counters.total_LLM_calls()
         self.in_tok += counters.total_input_tokens()
         self.out_tok += counters.total_output_tokens()
         self.rows_per_filter.append(counters.processed_tasks)
-        if query.limit != float("inf") and len(df) > query.limit:
-            df = df.head(query.limit)
+        if ordered_k is not None and operators:
+            # every row is evaluated (no limit stop, max_error 0): the rewrite's defaults never apply, and the
+            # rewritten query carries the ORDER BY, so this is the complete result in the order asked for
+            df = self.engine._result_with_defaults(query, operators, [0] * len(operators))
+        k = ordered_k if ordered_k is not None else query.limit
+        if k != float("inf") and len(df) > k:
+            df = df.head(k)  # ordered: the complete result's first k rows; unordered: k of the certain passers
         return df
 
     def run(self, sql: str):

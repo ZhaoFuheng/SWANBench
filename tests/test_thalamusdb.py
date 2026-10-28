@@ -52,3 +52,14 @@ def test_supported_share_is_the_filter_only_where_clause_questions():
         except Unsupported:
             pass
     assert supported == 69
+
+
+def test_an_ordered_limit_is_hidden_from_thalamusdb_and_an_unordered_one_is_not():
+    # ThalamusDB stops at the first k certain rows: fine for `LIMIT k` alone, wrong for `ORDER BY .. LIMIT k`
+    from swan_bench.thalamusdb_runner import hide_ordered_limit
+
+    sql, k = hide_ordered_limit("SELECT a FROM t WHERE NLFILTER(t.a, 'q?') ORDER BY a DESC LIMIT 3")
+    assert k == 3 and "LIMIT" not in sql.upper() and "ORDER BY a DESC" in sql
+    assert hide_ordered_limit("SELECT a FROM t WHERE NLFILTER(t.a, 'q?') LIMIT 3") == (
+        "SELECT a FROM t WHERE NLFILTER(t.a, 'q?') LIMIT 3", None)
+    assert hide_ordered_limit("SELECT a FROM t ORDER BY a LIMIT 3 OFFSET 1")[1] is None
