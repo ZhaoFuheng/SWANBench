@@ -55,7 +55,8 @@ class ThalamusDBSystem:
     name = "thalamusdb"
 
     def __init__(self, model: str, endpoint: str | None, concurrency: int = 20, thalamusdb_python: str | None = None,
-                 duckdb_bin: str | None = None, timeout: float = 4 * 3600, **_):
+                 duckdb_bin: str | None = None, timeout: float = 4 * 3600, api_key: str | None = None, **_):
+        self.api_key = api_key
         self.python = thalamusdb_python or os.environ.get("SWAN_THALAMUSDB_PYTHON") or str(DEFAULT_PYTHON)
         if not Path(self.python).is_file():
             raise SystemExit("ThalamusDB's interpreter is missing: run scripts/setup_thalamusdb.sh "
@@ -68,7 +69,7 @@ class ThalamusDBSystem:
         self.model, self.concurrency, self.timeout = model, concurrency, timeout
         # litellm needs the provider prefix; the request body carries the bare model name
         lm_model = model if "/" in model else f"openai/{model}"
-        call = {"model": lm_model, "api_base": endpoint.rstrip("/") + "/v1", "api_key": "sk-test", "temperature": 0,
+        call = {"model": lm_model, "api_base": endpoint.rstrip("/") + "/v1", "api_key": self.api_key or "sk-test", "temperature": 0,
                 "drop_params": True}  # litellm's client rejects temperature=0 for gpt-5-family names; drop it instead
         self._dir = tempfile.mkdtemp(prefix="thalamusdb_")
         self.config = Path(self._dir) / "models.json"
