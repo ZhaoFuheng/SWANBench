@@ -111,6 +111,8 @@ class Meter:
         self.responder = responder
         self.timeout = timeout
         self._lock = threading.Lock()
+        self._drained = threading.Condition(self._lock)
+        self._in_flight = 0  # requests received and not yet recorded
         self._counts = dict.fromkeys(COUNTERS, 0)
         self._server = _Server(("127.0.0.1", 0), self._handler())
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
@@ -127,12 +129,25 @@ class Meter:
         self._server.shutdown()
         self._server.server_close()
 
+    def _wait_drained(self) -> None:
+        # A system returns its rows while a request of its can still be in flight (a hedge, an asynchronous
+        # straggler); its usage must land in THIS question's counters, not the next one's or nowhere. Waits
+        # as long as the proxy would for the response itself.
+        deadline = time.time() + self.timeout
+        while self._in_flight > 0:
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                break
+            self._drained.wait(remaining)
+
     def reset(self) -> None:
         with self._lock:
+            self._wait_drained()
             self._counts = dict.fromkeys(COUNTERS, 0)
 
     def snapshot(self) -> dict:
         with self._lock:
+            self._wait_drained()
             counts = dict(self._counts)
         counts["cost_usd"] = round(counts["cost_usd"], 6)
         return counts
@@ -258,6 +273,19 @@ class Meter:
                 self._reply(status, body, {k: headers[k] for k in _KEEP_RESPONSE_HEADERS if k in headers})
 
             def do_POST(self):
+                metered = self.path.split("?")[0].endswith(METERED_PATHS)
+                if metered:
+                    with meter._lock:
+                        meter._in_flight += 1
+                try:
+                    self._post(metered)
+                finally:
+                    if metered:
+                        with meter._lock:
+                            meter._in_flight -= 1
+                            meter._drained.notify_all()
+
+            def _post(self, metered: bool):
                 raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
                 if meter.upstream is None:
                     request = json.loads(raw or b"{}")
@@ -277,7 +305,7 @@ class Meter:
                 else:
                     status, body, headers = self._forward("POST", raw)
                     headers = {k: headers[k] for k in _KEEP_RESPONSE_HEADERS if k in headers}
-                if self.path.split("?")[0].endswith(METERED_PATHS):
+                if metered:
                     try:
                         model = json.loads(raw or b"{}").get("model") or ""
                     except ValueError:

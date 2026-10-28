@@ -1,6 +1,8 @@
 """The meter counts streamed and plain chat completions, and Responses API calls, the same way."""
 
 import json
+import threading
+import time
 import urllib.request
 
 from swan_bench.meter import Meter
@@ -75,3 +77,23 @@ def test_stub_meter_answers_responses_requests_and_counts_them():
             _post(forwarder.url + "/v1/responses", body)
             _post(forwarder.url + "/v1/chat/completions", chat)
             assert forwarder.snapshot()["requests"] == 2 and forwarder.snapshot()["errors"] == 0
+
+
+def test_snapshot_waits_for_a_request_still_in_flight():
+    # a system can return its rows while one of its requests is still being answered (a hedge, an asynchronous
+    # straggler): the snapshot taken right then must still carry that request, not the next question's
+    def slow(body):
+        time.sleep(0.5)
+        return "True"
+
+    with Meter(None, responder=slow) as meter:
+        req = urllib.request.Request(meter.url + "/v1/chat/completions", method="POST",
+                                     data=json.dumps({"model": "m", "messages": [{"role": "user", "content": "hi"}]}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        t = threading.Thread(target=lambda: urllib.request.urlopen(req).read())
+        t.start()
+        time.sleep(0.1)  # the request is in flight
+        assert meter.snapshot()["requests"] == 1
+        t.join()
+        meter.reset()
+        assert meter.snapshot()["requests"] == 0
