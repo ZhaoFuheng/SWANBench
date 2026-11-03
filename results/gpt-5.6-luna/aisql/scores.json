@@ -19,14 +19,14 @@
       "quality": 0.7119,
       "unsupported": 0,
       "quality_supported": 0.7119,
-      "requests": 5889,
+      "requests": 5650,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 695232,
-      "completion_tokens": 363205,
-      "reasoning_tokens": 155604,
-      "cost_usd": 0.574895,
-      "seconds": 805.37
+      "prompt_tokens": 669998,
+      "completion_tokens": 338331,
+      "reasoning_tokens": 141356,
+      "cost_usd": 0.539999,
+      "seconds": 761.68
     },
     "superhero": {
       "correct": 7,
@@ -36,14 +36,14 @@
       "quality": 0.5269,
       "unsupported": 0,
       "quality_supported": 0.5269,
-      "requests": 6617,
+      "requests": 6220,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 657578,
-      "completion_tokens": 513122,
-      "reasoning_tokens": 283757,
-      "cost_usd": 0.747261,
-      "seconds": 630.59
+      "prompt_tokens": 619835,
+      "completion_tokens": 465752,
+      "reasoning_tokens": 249010,
+      "cost_usd": 0.682869,
+      "seconds": 572.44
     },
     "formula_1": {
       "correct": 28,
@@ -53,14 +53,14 @@
       "quality": 0.9911,
       "unsupported": 0,
       "quality_supported": 0.9911,
-      "requests": 1975,
+      "requests": 1920,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 196785,
-      "completion_tokens": 113380,
-      "reasoning_tokens": 42751,
-      "cost_usd": 0.175412,
-      "seconds": 198.5
+      "prompt_tokens": 191627,
+      "completion_tokens": 109874,
+      "reasoning_tokens": 40885,
+      "cost_usd": 0.170173,
+      "seconds": 180.44
     },
     "european_football_2": {
       "correct": 15,
@@ -70,14 +70,14 @@
       "quality": 0.879,
       "unsupported": 0,
       "quality_supported": 0.879,
-      "requests": 5047,
+      "requests": 4980,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 555948,
-      "completion_tokens": 428007,
-      "reasoning_tokens": 248153,
-      "cost_usd": 0.624798,
-      "seconds": 457.24
+      "prompt_tokens": 549109,
+      "completion_tokens": 423996,
+      "reasoning_tokens": 246671,
+      "cost_usd": 0.618617,
+      "seconds": 456.44
     }
   },
   "overall": {
@@ -88,13 +88,13 @@
     "quality": 0.7772,
     "unsupported": 0,
     "quality_supported": 0.7772,
-    "requests": 19528,
+    "requests": 18770,
     "fresh_calls": 0,
     "errors": 0,
-    "prompt_tokens": 2105543,
-    "completion_tokens": 1417714,
-    "reasoning_tokens": 730265,
-    "cost_usd": 2.122366,
-    "seconds": 2091.7
+    "prompt_tokens": 2030569,
+    "completion_tokens": 1337953,
+    "reasoning_tokens": 677922,
+    "cost_usd": 2.011658,
+    "seconds": 1971.0
   }
 }
