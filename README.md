@@ -157,8 +157,8 @@ Rows match regardless of column order, floats to 10 significant digits, and URLs
 Besides quality, every run records per question the LLM calls, tokens, cost and **latency**
 (wall-clock seconds, model response times included). Latency is reported from fresh runs, or from replays
 with the proxy's latency replay on, which reproduce the recorded response times; a replay without it (the
-quick-start runs through the cache) times the system's own work only. The cleanest comparison records the
-systems back to back in one session, as the published results were.
+quick-start runs through the cache) times the system's own work only. The published results are replays with
+it on, each system alone on one machine with no provider reachable.
 The headline is the mean quality. `swan-bench rescore` recomputes it from a run's stored answers. A question a
 system's dialect cannot express (ThalamusDB: anything but a WHERE-clause
 `ai_filter`) scores 0 and is counted as unsupported; `scores.json` and `swan-bench report` also give the
@@ -166,12 +166,13 @@ mean over the supported questions.
 
 ## Results
 
-`results/gpt-5.6-luna/` holds the four systems' answers, scores and seconds on gpt-5.6-luna, replayed from
-the published cache: mean quality 0.777 for SWAN-AISQL at 18,770 LLM calls and 1,971 s over the
-120 questions, 0.761 for BlendSQL at 59,620 calls and 4,608 s, 0.760 for LOTUS at 69,204 calls and
-4,101 s, 0.704 for PLOP at 25,640 calls and 10,270 s, 0.766 for Palimpzest (Abacus optimizer) at 70,933
-calls and 2,991 s, and 0.404 for ThalamusDB (0.703 on the 69 questions its filter-only dialect expresses) at
-160,527 calls and 38,375 s. The model's verdicts bound the
+`results/gpt-5.6-luna/` holds the six systems' answers, scores and seconds on gpt-5.6-luna, replayed from
+the published cache on one machine (a MacBook Air M5, November 2026; the protocol is in that folder's README):
+mean quality 0.777 for SWAN-AISQL at 18,751 LLM calls and 1,927 s over the
+120 questions, 0.761 for BlendSQL at 59,620 calls and 4,961 s, 0.752 for LOTUS at 69,204 calls and
+4,026 s, 0.698 for PLOP at 25,639 calls and 10,208 s, 0.778 for Palimpzest (Abacus optimizer) at 70,925
+calls and 5,202 s, and 0.403 for ThalamusDB (0.700 on the 69 questions its filter-only dialect expresses) at
+160,525 calls and 25,629 s. The model's verdicts bound the
 quality column (that folder's README gives the earlier recordings); calls, cost and latency are the
 separation.
 SWAN 1.x results are in `swan1/results/`.
@@ -207,7 +208,7 @@ src/swan_bench/          the benchmark: database build, AISQL language, translat
 src/swan_bench/systems/  one adapter per system (SWAN-AISQL, BlendSQL, LOTUS, PLOP, ThalamusDB, Palimpzest)
 queries/                 the AISQL and oracle queries
 swan1/                   SWAN 1.x: its questions, per-system queries, results and the 2024 migration scripts
-results/gpt-5.6-luna/    SWAN 2.0 answers and scores for the four systems
+results/gpt-5.6-luna/    SWAN 2.0 answers and scores for the six systems
 results/blendsql_2024/   the 2024 BlendSQL logs (5-shot logs in Git LFS)
 docs/                    SWAN2_DESIGN.md, SWAN2_AUTHORING.md
 ```

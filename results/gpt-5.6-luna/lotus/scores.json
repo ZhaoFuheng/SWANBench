@@ -1,7 +1,7 @@
 {
   "system": "lotus",
   "model": "gpt-5.6-luna",
-  "endpoint": "http://localhost:4041",
+  "endpoint": "http://localhost:4001",
   "options": {
     "concurrency": 20
   },
@@ -12,6 +12,8 @@
       "failed": 0,
       "accuracy": 0.3333,
       "quality": 0.7331,
+      "unsupported": 0,
+      "quality_supported": 0.7331,
       "requests": 18088,
       "fresh_calls": 0,
       "errors": 0,
@@ -19,22 +21,24 @@
       "completion_tokens": 650242,
       "reasoning_tokens": 493604,
       "cost_usd": 1.154915,
-      "seconds": 1128.92
+      "seconds": 1086.31
     },
     "superhero": {
-      "correct": 7,
+      "correct": 6,
       "total": 30,
       "failed": 0,
-      "accuracy": 0.2333,
-      "quality": 0.5071,
+      "accuracy": 0.2,
+      "quality": 0.4738,
+      "unsupported": 0,
+      "quality_supported": 0.4738,
       "requests": 23318,
       "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 2103982,
-      "completion_tokens": 727368,
-      "reasoning_tokens": 532901,
-      "cost_usd": 1.29364,
-      "seconds": 1411.73
+      "completion_tokens": 727410,
+      "reasoning_tokens": 532943,
+      "cost_usd": 1.293691,
+      "seconds": 1400.03
     },
     "formula_1": {
       "correct": 30,
@@ -42,6 +46,8 @@
       "failed": 0,
       "accuracy": 1.0,
       "quality": 1.0,
+      "unsupported": 0,
+      "quality_supported": 1.0,
       "requests": 14706,
       "fresh_calls": 0,
       "errors": 0,
@@ -49,7 +55,7 @@
       "completion_tokens": 305661,
       "reasoning_tokens": 175050,
       "cost_usd": 0.629253,
-      "seconds": 721.04
+      "seconds": 707.42
     },
     "european_football_2": {
       "correct": 12,
@@ -57,6 +63,8 @@
       "failed": 0,
       "accuracy": 0.4,
       "quality": 0.801,
+      "unsupported": 0,
+      "quality_supported": 0.801,
       "requests": 13092,
       "fresh_calls": 0,
       "errors": 0,
@@ -64,22 +72,24 @@
       "completion_tokens": 591896,
       "reasoning_tokens": 468337,
       "cost_usd": 0.957535,
-      "seconds": 838.96
+      "seconds": 831.75
     }
   },
   "overall": {
-    "correct": 59,
+    "correct": 58,
     "total": 120,
     "failed": 0,
-    "accuracy": 0.4917,
-    "quality": 0.7603,
+    "accuracy": 0.4833,
+    "quality": 0.752,
+    "unsupported": 0,
+    "quality_supported": 0.752,
     "requests": 69204,
     "fresh_calls": 0,
     "errors": 0,
     "prompt_tokens": 6525703,
-    "completion_tokens": 2275167,
-    "reasoning_tokens": 1669892,
-    "cost_usd": 4.035343,
-    "seconds": 4100.65
+    "completion_tokens": 2275209,
+    "reasoning_tokens": 1669934,
+    "cost_usd": 4.035394,
+    "seconds": 4025.51
   }
 }

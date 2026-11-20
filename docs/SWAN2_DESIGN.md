@@ -84,8 +84,8 @@ value. It must return the gold answer, which shows the AISQL query is right when
   flight, and questions run one at a time. Latency is the wall-clock time of a question from the system's
   start to its last row (`seconds` in `queries.jsonl`, summed in `scores.json` and `swan-bench report`), so
   it includes the model's response times. A latency figure comes from a fresh run or from a replay with
-  the proxy's latency replay on, which reproduces the recorded response times; the cleanest comparison
-  records the systems back to back in one session, as the published results were. A replay with latency
+  the proxy's latency replay on, which reproduces the recorded response times; the published results are
+  replays with it on, each system alone on one machine with no provider reachable. A replay with latency
   replay off measures the system's own work only (planning, data, dispatch), which is what the quick-start
   runs through the cache show.
 - **Recording and replay.** Runs go through the SWAN-AISQL cache proxy, which records each answer with its

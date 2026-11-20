@@ -4,8 +4,8 @@
   "endpoint": "http://localhost:4001",
   "options": {
     "concurrency": 20,
-    "plop_bin": "/Users/owner/Desktop/research/swan-ai-sql/Morrila/build/release/duckdb",
-    "duckdb_bin": "/Users/owner/Desktop/research/swan-ai-sql/SWAN-AISQL/build/reldebug/duckdb"
+    "plop_bin": "Morrila/build/release/duckdb",
+    "duckdb_bin": "SWAN-AISQL/build/release/duckdb"
   },
   "databases": {
     "california_schools": {
@@ -16,23 +16,23 @@
       "quality": 0.6852,
       "unsupported": 0,
       "quality_supported": 0.6852,
-      "requests": 6976,
+      "requests": 6971,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 452676,
-      "completion_tokens": 125716,
-      "reasoning_tokens": 85771,
-      "cost_usd": 0.241393,
-      "seconds": 3418.1
+      "prompt_tokens": 452354,
+      "completion_tokens": 126018,
+      "reasoning_tokens": 86094,
+      "cost_usd": 0.241692,
+      "seconds": 3401.93
     },
     "superhero": {
       "correct": 8,
       "total": 30,
       "failed": 0,
       "accuracy": 0.2667,
-      "quality": 0.5312,
+      "quality": 0.5112,
       "unsupported": 0,
-      "quality_supported": 0.5312,
+      "quality_supported": 0.5112,
       "requests": 8851,
       "fresh_calls": 0,
       "errors": 0,
@@ -40,7 +40,7 @@
       "completion_tokens": 112237,
       "reasoning_tokens": 66085,
       "cost_usd": 0.218545,
-      "seconds": 2431.9
+      "seconds": 2414.63
     },
     "formula_1": {
       "correct": 22,
@@ -50,31 +50,31 @@
       "quality": 0.9017,
       "unsupported": 0,
       "quality_supported": 0.9017,
-      "requests": 3036,
+      "requests": 3038,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 145210,
-      "completion_tokens": 60438,
+      "prompt_tokens": 145302,
+      "completion_tokens": 60443,
       "reasoning_tokens": 41050,
-      "cost_usd": 0.10157,
-      "seconds": 594.51
+      "cost_usd": 0.101594,
+      "seconds": 592.2
     },
     "european_football_2": {
       "correct": 11,
       "total": 30,
       "failed": 0,
       "accuracy": 0.3667,
-      "quality": 0.6991,
+      "quality": 0.6924,
       "unsupported": 0,
-      "quality_supported": 0.6991,
-      "requests": 6777,
+      "quality_supported": 0.6924,
+      "requests": 6779,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 391225,
-      "completion_tokens": 388938,
-      "reasoning_tokens": 344172,
-      "cost_usd": 0.544968,
-      "seconds": 3825.75
+      "prompt_tokens": 391323,
+      "completion_tokens": 388951,
+      "reasoning_tokens": 344177,
+      "cost_usd": 0.545003,
+      "seconds": 3798.89
     }
   },
   "overall": {
@@ -82,16 +82,16 @@
     "total": 120,
     "failed": 1,
     "accuracy": 0.425,
-    "quality": 0.7043,
+    "quality": 0.6976,
     "unsupported": 0,
-    "quality_supported": 0.7043,
-    "requests": 25640,
+    "quality_supported": 0.6976,
+    "requests": 25639,
     "fresh_calls": 0,
     "errors": 0,
-    "prompt_tokens": 1408423,
-    "completion_tokens": 687329,
-    "reasoning_tokens": 537078,
-    "cost_usd": 1.106476,
-    "seconds": 10270.26
+    "prompt_tokens": 1408291,
+    "completion_tokens": 687649,
+    "reasoning_tokens": 537406,
+    "cost_usd": 1.106834,
+    "seconds": 10207.65
   }
 }

@@ -4,7 +4,7 @@
   "endpoint": "http://localhost:4001",
   "options": {
     "concurrency": 20,
-    "duckdb_bin": "/Users/owner/Desktop/research/swan-ai-sql/SWAN-AISQL/build/reldebug/duckdb",
+    "duckdb_bin": "SWAN-AISQL/build/release/duckdb",
     "mock": false,
     "settings": {
       "ai_concurrency": 20
@@ -19,14 +19,14 @@
       "quality": 0.7119,
       "unsupported": 0,
       "quality_supported": 0.7119,
-      "requests": 5650,
+      "requests": 5659,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 669998,
-      "completion_tokens": 338331,
-      "reasoning_tokens": 141356,
-      "cost_usd": 0.539999,
-      "seconds": 761.68
+      "prompt_tokens": 673138,
+      "completion_tokens": 337259,
+      "reasoning_tokens": 140726,
+      "cost_usd": 0.539339,
+      "seconds": 712.9
     },
     "superhero": {
       "correct": 7,
@@ -36,14 +36,14 @@
       "quality": 0.5269,
       "unsupported": 0,
       "quality_supported": 0.5269,
-      "requests": 6220,
+      "requests": 6235,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 619835,
-      "completion_tokens": 465752,
-      "reasoning_tokens": 249010,
-      "cost_usd": 0.682869,
-      "seconds": 572.44
+      "prompt_tokens": 621276,
+      "completion_tokens": 469026,
+      "reasoning_tokens": 251953,
+      "cost_usd": 0.687086,
+      "seconds": 576.41
     },
     "formula_1": {
       "correct": 28,
@@ -53,14 +53,14 @@
       "quality": 0.9911,
       "unsupported": 0,
       "quality_supported": 0.9911,
-      "requests": 1920,
+      "requests": 1885,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 191627,
-      "completion_tokens": 109874,
-      "reasoning_tokens": 40885,
-      "cost_usd": 0.170173,
-      "seconds": 180.44
+      "prompt_tokens": 188002,
+      "completion_tokens": 108099,
+      "reasoning_tokens": 40381,
+      "cost_usd": 0.167319,
+      "seconds": 175.24
     },
     "european_football_2": {
       "correct": 15,
@@ -70,14 +70,14 @@
       "quality": 0.879,
       "unsupported": 0,
       "quality_supported": 0.879,
-      "requests": 4980,
+      "requests": 4972,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 549109,
-      "completion_tokens": 423996,
-      "reasoning_tokens": 246671,
-      "cost_usd": 0.618617,
-      "seconds": 456.44
+      "prompt_tokens": 548149,
+      "completion_tokens": 423280,
+      "reasoning_tokens": 246277,
+      "cost_usd": 0.617567,
+      "seconds": 462.84
     }
   },
   "overall": {
@@ -88,13 +88,13 @@
     "quality": 0.7772,
     "unsupported": 0,
     "quality_supported": 0.7772,
-    "requests": 18770,
+    "requests": 18751,
     "fresh_calls": 0,
     "errors": 0,
-    "prompt_tokens": 2030569,
-    "completion_tokens": 1337953,
-    "reasoning_tokens": 677922,
-    "cost_usd": 2.011658,
-    "seconds": 1971.0
+    "prompt_tokens": 2030565,
+    "completion_tokens": 1337664,
+    "reasoning_tokens": 679337,
+    "cost_usd": 2.011311,
+    "seconds": 1927.39
   }
 }
