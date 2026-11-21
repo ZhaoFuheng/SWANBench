@@ -69,10 +69,10 @@
       "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 2492407,
-      "completion_tokens": 2072175,
-      "reasoning_tokens": 1749666,
-      "cost_usd": 2.985092,
-      "seconds": 2688.58
+      "completion_tokens": 2072243,
+      "reasoning_tokens": 1749734,
+      "cost_usd": 2.985174,
+      "seconds": 2685.28
     }
   },
   "overall": {
@@ -87,9 +87,9 @@
     "fresh_calls": 0,
     "errors": 0,
     "prompt_tokens": 4601461,
-    "completion_tokens": 3356882,
-    "reasoning_tokens": 2796884,
-    "cost_usd": 4.948553,
-    "seconds": 4961.32
+    "completion_tokens": 3356950,
+    "reasoning_tokens": 2796952,
+    "cost_usd": 4.948635,
+    "seconds": 4958.02
   }
 }

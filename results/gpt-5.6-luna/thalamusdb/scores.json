@@ -54,10 +54,10 @@
       "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 343561,
-      "completion_tokens": 369132,
-      "reasoning_tokens": 287876,
-      "cost_usd": 0.51167,
-      "seconds": 1463.84
+      "completion_tokens": 369139,
+      "reasoning_tokens": 287883,
+      "cost_usd": 0.511678,
+      "seconds": 997.22
     },
     "european_football_2": {
       "correct": 9,
@@ -71,10 +71,10 @@
       "fresh_calls": 0,
       "errors": 0,
       "prompt_tokens": 3798648,
-      "completion_tokens": 6281226,
-      "reasoning_tokens": 5366999,
-      "cost_usd": 8.297202,
-      "seconds": 16400.82
+      "completion_tokens": 6280702,
+      "reasoning_tokens": 5366481,
+      "cost_usd": 8.296573,
+      "seconds": 15967.88
     }
   },
   "overall": {
@@ -89,9 +89,9 @@
     "fresh_calls": 0,
     "errors": 0,
     "prompt_tokens": 7221522,
-    "completion_tokens": 9558190,
-    "reasoning_tokens": 7967204,
-    "cost_usd": 12.914136,
-    "seconds": 25628.54
+    "completion_tokens": 9557673,
+    "reasoning_tokens": 7966693,
+    "cost_usd": 12.913515,
+    "seconds": 24728.98
   }
 }

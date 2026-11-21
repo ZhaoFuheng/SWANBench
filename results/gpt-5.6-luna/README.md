@@ -23,9 +23,9 @@ database.
 | formula_1 | 1.000 | 0.984 | 0.970 | 0.532 | 0.902 | 0.991 |
 | european_football_2 | 0.801 | 0.845 | 0.851 | 0.498 | 0.692 | 0.879 |
 | **quality (mean)** | **0.752** | **0.761** | **0.778** | **0.403** | **0.698** | **0.777** |
-| LLM calls | 69,204 | 59,620 | 70,925 | 160,525 | 25,639 | 18,751 |
+| LLM calls | 69,204 | 59,620 | 70,925 | 160,525 | 25,639 | 18,747 |
 | cost | $4.04 | $4.95 | $9.81 | $12.91 | $1.11 | $2.01 |
-| latency, all 120 questions | 4,026 s | 4,961 s | 5,202 s | 25,629 s (69 q) | 10,208 s | 1,927 s |
+| latency, all 120 questions | 4,026 s | 4,958 s | 5,202 s | 24,729 s (69 q) | 10,208 s | 1,688 s |
 
 ThalamusDB's dialect has boolean WHERE-clause filters only, so 51 questions (those with `ai_classify`,
 `ai_complete` or a filter inside a CASE) have no form in it and score 0 above. The 69 it expresses, for every
@@ -34,9 +34,9 @@ system:
 | system | quality on the 69 | LLM calls | cost | latency (69 q) | median question |
 |---|---|---|---|---|---|
 | LOTUS | 0.727 | 56,319 | $3.22 | 3,183 s | 35.2 s |
-| BlendSQL | 0.726 | 48,449 | $3.98 | 3,911 s | 16.3 s |
+| BlendSQL | 0.726 | 48,449 | $3.98 | 3,908 s | 16.3 s |
 | Palimpzest | 0.709 | 57,937 | $7.57 | 4,117 s | 41.8 s |
-| ThalamusDB | 0.700 | 160,525 | $12.91 | 25,629 s | 32.2 s |
+| ThalamusDB | 0.700 | 160,525 | $12.91 | 24,729 s | 32.2 s |
 | PLOP-DP | 0.641 | 18,021 | $0.60 | 7,381 s | 61.0 s |
 | SWAN-AISQL | 0.747 | 14,431 | $1.55 | 1,289 s | 10.1 s |
 

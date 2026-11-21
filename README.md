@@ -168,11 +168,11 @@ mean over the supported questions.
 
 `results/gpt-5.6-luna/` holds the six systems' answers, scores and seconds on gpt-5.6-luna, replayed from
 the published cache on one machine (a MacBook Air M5, November 2026; the protocol is in that folder's README):
-mean quality 0.777 for SWAN-AISQL at 18,751 LLM calls and 1,927 s over the
-120 questions, 0.761 for BlendSQL at 59,620 calls and 4,961 s, 0.752 for LOTUS at 69,204 calls and
+mean quality 0.777 for SWAN-AISQL at 18,747 LLM calls and 1,688 s over the
+120 questions, 0.761 for BlendSQL at 59,620 calls and 4,958 s, 0.752 for LOTUS at 69,204 calls and
 4,026 s, 0.698 for PLOP at 25,639 calls and 10,208 s, 0.778 for Palimpzest (Abacus optimizer) at 70,925
 calls and 5,202 s, and 0.403 for ThalamusDB (0.700 on the 69 questions its filter-only dialect expresses) at
-160,525 calls and 25,629 s. The model's verdicts bound the
+160,525 calls and 24,729 s. The model's verdicts bound the
 quality column (that folder's README gives the earlier recordings); calls, cost and latency are the
 separation.
 SWAN 1.x results are in `swan1/results/`.

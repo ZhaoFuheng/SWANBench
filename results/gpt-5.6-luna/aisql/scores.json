@@ -19,14 +19,14 @@
       "quality": 0.7119,
       "unsupported": 0,
       "quality_supported": 0.7119,
-      "requests": 5659,
+      "requests": 5655,
       "fresh_calls": 0,
       "errors": 0,
-      "prompt_tokens": 673138,
-      "completion_tokens": 337259,
+      "prompt_tokens": 672838,
+      "completion_tokens": 337239,
       "reasoning_tokens": 140726,
-      "cost_usd": 0.539339,
-      "seconds": 712.9
+      "cost_usd": 0.539255,
+      "seconds": 473.34
     },
     "superhero": {
       "correct": 7,
@@ -88,13 +88,13 @@
     "quality": 0.7772,
     "unsupported": 0,
     "quality_supported": 0.7772,
-    "requests": 18751,
+    "requests": 18747,
     "fresh_calls": 0,
     "errors": 0,
-    "prompt_tokens": 2030565,
-    "completion_tokens": 1337664,
+    "prompt_tokens": 2030265,
+    "completion_tokens": 1337644,
     "reasoning_tokens": 679337,
-    "cost_usd": 2.011311,
-    "seconds": 1927.39
+    "cost_usd": 2.011227,
+    "seconds": 1687.83
   }
 }
