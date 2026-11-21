@@ -8,8 +8,10 @@ SWAN-AISQL cache proxy replays on a cache hit). Both OpenAI envelopes count: a c
 writes and warm reads). A Responses `usage` (input_tokens, output_tokens, input_tokens_details.cached_tokens,
 output_tokens_details.reasoning_tokens) is folded into the chat-completion counters, so a system's totals
 do not depend on which envelope it chose. A streamed response carries no cost header: its cost is
-priced from the token usage in its last chunk with `PRICES`, which are litellm's prices. The runner reads and
-resets the counters around each query.
+priced from the token usage in its last chunk with `PRICES`, which are litellm's prices. A TypeSafe System One
+call (`/systemone`, which SWAN-AISQL sends for `ai_filter` / `ai_classify` under `SET ai_typesafe`) counts as a
+request too: its `usage` has the Responses shape and it carries no cost header, so it is priced with `PRICES`.
+The runner reads and resets the counters around each query.
 
 With `upstream=None` the meter answers every chat or Responses request itself with a deterministic 'True'
 or 'False'.
@@ -28,13 +30,15 @@ COST_HEADER = "x-litellm-response-cost"
 _DROP_REQUEST_HEADERS = {"host", "content-length", "connection", "accept-encoding"}
 _KEEP_RESPONSE_HEADERS = ("Content-Type", COST_HEADER)
 
-#: USD per token: (input, cached input, output), as in litellm's model cost map
-PRICES = {"gpt-5.6-luna": (2e-07, 2e-08, 1.2e-06)}
+#: USD per token: (input, cached input, output), as in litellm's model cost map. jev-latest is TypeSafe's System
+#: One model: input tokens only, at the price the SWAN-AISQL cache proxy books for a recorded call
+PRICES = {"gpt-5.6-luna": (2e-07, 2e-08, 1.2e-06), "jev-latest": (4.2e-08, 4.2e-08, 0.0)}
 
 COUNTERS = ("requests", "errors", "prompt_tokens", "completion_tokens", "reasoning_tokens", "cost_usd")
 
-#: paths whose POSTs are LLM calls (both OpenAI envelopes); embeddings and anything else are not metered
-METERED_PATHS = ("/chat/completions", "/responses")
+#: paths whose POSTs are LLM calls (both OpenAI envelopes, and a TypeSafe System One call); embeddings and
+#: anything else are not metered
+METERED_PATHS = ("/chat/completions", "/responses", "/systemone")
 
 
 def is_responses_request(body: dict) -> bool:

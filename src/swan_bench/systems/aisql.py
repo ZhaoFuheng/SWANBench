@@ -125,6 +125,10 @@ class AISQLSystem:
             if self.api_key:
                 lines.append(f"SET ai_api_key = '{self.api_key}';")
         lines += [f"SET {k} = '{v}';" for k, v in self.settings.items()]
+        if not self.mock and self.settings.get("ai_typesafe") and "ai_typesafe_endpoint" not in self.settings:
+            # TypeSafe System One calls (--set ai_typesafe=filter,classify) go through the meter like chat calls,
+            # so they are counted; the engine's default would send them to the cache proxy directly
+            lines.append(f"SET ai_typesafe_endpoint = '{self.endpoint}';")
         return "\n".join(lines)
 
     def execute(self, question, query: str) -> list[tuple]:

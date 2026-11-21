@@ -1,9 +1,11 @@
-"""The meter counts streamed and plain chat completions, and Responses API calls, the same way."""
+"""The meter counts streamed and plain chat completions, Responses API calls and System One calls the same way."""
 
 import json
+import sys
 import threading
 import time
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from swan_bench.meter import Meter
 
@@ -97,3 +99,56 @@ def test_snapshot_waits_for_a_request_still_in_flight():
         t.join()
         meter.reset()
         assert meter.snapshot()["requests"] == 0
+
+
+SYSTEM_ONE_ANSWER = {"model": "jev-1.14.0", "answers": {"q": {"type": "noul", "probability": 0.9}},
+                     "usage": {"input_tokens": 100000, "output_tokens": 17}}
+
+
+def test_system_one_calls_are_metered_and_priced():
+    # SWAN-AISQL under SET ai_typesafe sends ai_filter / ai_classify to TypeSafe's /v1/systemone. Each is one
+    # request; no cost header comes back, so the input tokens are priced at the System One rate (output is free)
+    usage = Meter.usage_of(json.dumps(SYSTEM_ONE_ANSWER).encode())
+    assert usage["prompt_tokens"] == 100000 and usage["completion_tokens"] == 17
+    assert abs(Meter.price("jev-latest", usage) - 100000 * 4.2e-08) < 1e-12
+
+    class SystemOne(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            body = json.dumps(SYSTEM_ONE_ANSWER).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    upstream = ThreadingHTTPServer(("127.0.0.1", 0), SystemOne)
+    threading.Thread(target=upstream.serve_forever, daemon=True).start()
+    try:
+        with Meter(f"http://127.0.0.1:{upstream.server_address[1]}") as meter:
+            answer = _post(meter.url + "/v1/systemone", {"model": "jev-latest", "state": "s", "questions": "{}"})
+            assert answer["answers"]["q"]["probability"] == 0.9
+            counts = meter.snapshot()
+            assert counts["requests"] == 1 and counts["errors"] == 0
+            assert counts["prompt_tokens"] == 100000 and counts["completion_tokens"] == 17
+            assert counts["cost_usd"] == 0.0042
+    finally:
+        upstream.shutdown()
+        upstream.server_close()
+
+
+def test_aisql_routes_system_one_calls_through_the_meter():
+    from swan_bench.systems.aisql import AISQLSystem
+
+    binary = sys.executable  # any existing file: the preamble is built without running it
+    plain = AISQLSystem("gpt-5.6-luna", "http://meter", duckdb_bin=binary, settings={"ai_concurrency": 20})
+    assert "ai_typesafe" not in plain._preamble()
+    jev = AISQLSystem("gpt-5.6-luna", "http://meter", duckdb_bin=binary, settings={"ai_typesafe": "filter,classify"})
+    assert "SET ai_typesafe = 'filter,classify';" in jev._preamble()
+    assert "SET ai_typesafe_endpoint = 'http://meter';" in jev._preamble()
+    own = AISQLSystem("gpt-5.6-luna", "http://meter", duckdb_bin=binary,
+                      settings={"ai_typesafe": "filter", "ai_typesafe_endpoint": "http://elsewhere"})
+    assert "http://meter';" not in own._preamble().split("ai_typesafe_endpoint")[1]
