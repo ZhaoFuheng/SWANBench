@@ -44,6 +44,8 @@ def _cmd_run(args) -> None:
     from .harness import run
 
     _load_dotenv()
+    if args.set and args.system != "aisql":  # no other system takes settings: none would be applied
+        raise SystemExit(f"--set is a SWAN-AISQL setting; --system {args.system} runs with its own defaults")
     options = {"api_key": os.environ.get("OPENAI_API_KEY"), "concurrency": args.concurrency}
     if args.system == "aisql":
         settings = {"ai_concurrency": args.concurrency, **dict(s.split("=", 1) for s in args.set or [])}
@@ -54,6 +56,8 @@ def _cmd_run(args) -> None:
         options.update(thalamusdb_python=args.thalamusdb_python, duckdb_bin=args.duckdb_bin)
     if args.system == "palimpzest":
         options.update(palimpzest_python=args.palimpzest_python, optimizer=args.pz_optimizer, policy=args.pz_policy)
+    if args.system == "sema":
+        options.update(sema_bin=args.sema_bin)
     endpoint = None if args.stub else args.endpoint
     tag = args.tag or (f"{args.model.replace('/', '_')}" + ("_stub" if args.stub else ""))
     run(args.system, args.model, endpoint, databases=args.db or paths.DATABASES, qids=set(args.qid or []),
@@ -116,14 +120,14 @@ def _cmd_report(args) -> None:
             continue
         for db, s in [*report["databases"].items(), ("overall", report["overall"])]:
             rows.append((report["system"], scores.parent.name, db, s))
-    print(f"{'system':9} {'run':18} {'database':20} {'quality':>7} {'exact':>8} {'calls':>8} {'fresh':>7} "
+    print(f"{'system':9} {'run':18} {'database':20} {'quality':>7} {'exact':>8} {'failed':>6} {'calls':>8} {'fresh':>7} "
           f"{'tokens':>11} {'cost $':>8} {'seconds':>9}")
     for system, tag, db, s in rows:
         tokens = (s["prompt_tokens"] or 0) + (s["completion_tokens"] or 0)
         qual = f"{s['quality']:.3f}" if s.get("quality") is not None else "-"
         if s.get("unsupported"):  # macro over all questions, then over the ones the system's dialect expresses
             qual += f" ({s['quality_supported']:.3f}/{s['total'] - s['unsupported']}q)"
-        print(f"{system:9} {tag:18} {db:20} {qual:>7} {s['correct']:>3}/{s['total']:<4} "
+        print(f"{system:9} {tag:18} {db:20} {qual:>7} {s['correct']:>3}/{s['total']:<4} {s.get('failed') or 0:6} "
               f"{s['requests'] or 0:8} {s['fresh_calls'] if s['fresh_calls'] is not None else '-':>7} "
               f"{tokens:11} {s['cost_usd'] or 0:8.2f} {s['seconds'] or 0:9.0f}")
 
@@ -149,7 +153,8 @@ def main(argv: list[str] | None = None) -> None:
                         f"(default $SWAN_BENCH_ENDPOINT or {DEFAULT_ENDPOINT})")
     p.add_argument("--db", action="append", choices=paths.DATABASES, help="repeatable; default all four")
     p.add_argument("--qid", action="append", help="run only this question (repeatable)")
-    p.add_argument("--tag", help="run directory under runs/<system>/ (default: the model name)")
+    p.add_argument("--tag", help="run directory under runs/<system>/ (default: the model name); it holds one "
+                                 "configuration, so a run with another model or other options needs its own tag or --rerun")
     p.add_argument("--rerun", action="store_true", help="discard the run's earlier records and start over")
     p.add_argument("--retry-errors", action="store_true", help="rerun the questions whose earlier record is an error")
     p.add_argument("--budget", type=float, help="stop when the proxy's new spend in this run exceeds this many USD")
@@ -161,6 +166,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--set", action="append", metavar="NAME=VALUE", help="aisql: an extra SET before each query")
     p.add_argument("--plop-bin", default=os.environ.get("SWAN_PLOP_BIN"),
                    help="plop: the Morrila fork's duckdb shell (default $SWAN_PLOP_BIN); needs --duckdb-bin for the parquet export")
+    p.add_argument("--sema-bin", default=os.environ.get("SWAN_SEMA_BIN"),
+                   help="sema: Sema's duckdb shell (default $SWAN_SEMA_BIN; SWAN-AISQL's aisql-bench/setup_sema.sh builds it)")
     p.add_argument("--palimpzest-python", default=os.environ.get("SWAN_PALIMPZEST_PYTHON"),
                    help="palimpzest: the interpreter with palimpzest installed (default .venv-palimpzest/bin/python, see scripts/setup_palimpzest.sh)")
     p.add_argument("--pz-optimizer", default="pareto", choices=["pareto", "none"],

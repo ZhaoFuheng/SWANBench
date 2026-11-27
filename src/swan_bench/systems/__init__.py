@@ -7,7 +7,7 @@ and the system's own), and `execute(question, query) -> list[tuple]`. Optionally
 `last_usage() -> dict` (the system's own accounting of the query it just ran).
 """
 
-SYSTEMS = ("blendsql", "lotus", "aisql", "plop", "thalamusdb", "palimpzest")
+SYSTEMS = ("blendsql", "lotus", "aisql", "plop", "thalamusdb", "palimpzest", "sema")
 
 
 def load_system(name: str):
@@ -29,4 +29,7 @@ def load_system(name: str):
     if name == "palimpzest":
         from .palimpzest import PalimpzestSystem
         return PalimpzestSystem
+    if name == "sema":
+        from .sema import SemaSystem
+        return SemaSystem
     raise ValueError(f"unknown system {name!r}; expected one of {', '.join(SYSTEMS)}")
