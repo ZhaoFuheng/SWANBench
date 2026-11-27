@@ -28,9 +28,8 @@ SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question 
   AI call handed to Palimpzest as a semantic operator it plans. It runs in its own environment:
   `scripts/setup_palimpzest.sh`.
 - **Sema** (the authors' DuckDB fork, [BITQiKangK/Sema](https://github.com/BITQiKangK/Sema)) runs an automatic
-  translation into its `s'...'` dialect at its default settings, which ask one row per request for a lone
-  filter or map. `--sema-bin` names the fork's shell, built by SWAN-AISQL's `aisql-bench/setup_sema.sh`
-  (pinned commit, plus `sema_fork.patch` for macOS and for the 20-request cap every system gets).
+  translation into its `s'...'` dialect, at its default settings. `--sema-bin` names the fork's shell, built by
+  SWAN-AISQL's `aisql-bench/setup_sema.sh`.
 
 The questions give a planner choices (LIMITs, several AI filters, AI calls through joins, ...), and the
 databases repeat each entity about twice. docs/SWAN2_DESIGN.md explains the design and lists every knob.
@@ -143,8 +142,7 @@ uv run swan-bench report
 - Each question prints its time, LLM calls, cost and quality. `queries.jsonl` holds each question's answer
   and counts, and `scores.json` the totals per database.
 - An interrupted run resumes where it stopped. `--retry-errors` reruns the questions that failed, and
-  `--rerun` starts over. A run directory holds one configuration: a run with another model or other options
-  stops before it runs anything, so give it its own `--tag`.
+  `--rerun` starts over. A run with another model or other options needs its own `--tag`.
 - `--model` (default `gpt-5.6-luna`), `--endpoint`, `--concurrency` (default 20, for every system),
   `--budget`, `--set` and the other options are in the knobs table of docs/SWAN2_DESIGN.md.
 
