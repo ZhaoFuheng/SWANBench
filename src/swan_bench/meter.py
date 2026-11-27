@@ -11,7 +11,9 @@ do not depend on which envelope it chose. A streamed response carries no cost he
 priced from the token usage in its last chunk with `PRICES`, which are litellm's prices. A TypeSafe System One
 call (`/systemone`, which SWAN-AISQL sends for `ai_filter` / `ai_classify` under `SET ai_typesafe`) counts as a
 request too: its `usage` has the Responses shape and it carries no cost header, so it is priced with `PRICES`.
-The runner reads and resets the counters around each query.
+The runner reads and resets the counters around each query. `errors` counts every failed attempt, including one
+the system then retried successfully; `unanswered` counts the distinct requests that never got an answer at all
+(no attempt with the same body succeeded), which is what tells a result built on a missing answer from a clean one.
 
 With `upstream=None` the meter answers every chat or Responses request itself with a deterministic 'True'
 or 'False'.
@@ -118,6 +120,7 @@ class Meter:
         self._drained = threading.Condition(self._lock)
         self._in_flight = 0  # requests received and not yet recorded
         self._counts = dict.fromkeys(COUNTERS, 0)
+        self._answered, self._failed = set(), set()  # digests of the request bodies that got / were refused an answer
         self._server = _Server(("127.0.0.1", 0), self._handler())
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
 
@@ -148,11 +151,13 @@ class Meter:
         with self._lock:
             self._wait_drained()
             self._counts = dict.fromkeys(COUNTERS, 0)
+            self._answered, self._failed = set(), set()
 
     def snapshot(self) -> dict:
         with self._lock:
             self._wait_drained()
             counts = dict(self._counts)
+            counts["unanswered"] = len(self._failed - self._answered)
         counts["cost_usd"] = round(counts["cost_usd"], 6)
         return counts
 
@@ -220,17 +225,20 @@ class Meter:
         return ((prompt - cached) * prices[0] + cached * prices[1]
                 + (usage.get("completion_tokens") or 0) * prices[2])
 
-    def _record(self, status: int, body: bytes, headers: dict, model: str) -> None:
+    def _record(self, status: int, body: bytes, headers: dict, model: str, request: bytes = b"") -> None:
         usage = self.usage_of(body)
         details = usage.get("completion_tokens_details") or {}
         cost = headers.get(COST_HEADER)
         if not cost and 200 <= status < 300:
             cost = self.price(model, usage)
+        digest = hashlib.sha256(request).digest()[:16]
         with self._lock:
             self._counts["requests"] += 1
             if not 200 <= status < 300:
                 self._counts["errors"] += 1
+                self._failed.add(digest)
                 return
+            self._answered.add(digest)
             self._counts["prompt_tokens"] += usage.get("prompt_tokens") or 0
             self._counts["completion_tokens"] += usage.get("completion_tokens") or 0
             self._counts["reasoning_tokens"] += details.get("reasoning_tokens") or 0
@@ -293,19 +301,19 @@ class Meter:
                 raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
                 if meter.upstream is None:
                     request = json.loads(raw or b"{}")
+                    status, headers = 200, {"Content-Type": "application/json"}
                     try:
                         completion = _stub_completion(request, meter.responder)
-                    except Exception as ex:  # noqa: BLE001 -- a responder bug is an HTTP 500, not a dead thread
-                        error = json.dumps({"error": {"message": f"responder: {type(ex).__name__}: {ex}"}}).encode()
-                        return self._reply(500, error, {"Content-Type": "application/json"})
-                    if is_responses_request(request):
-                        body = json.dumps(chat_completion_as_responses(completion)).encode()
-                        headers = {"Content-Type": "application/json"}
-                    elif request.get("stream"):
-                        body, headers = _as_stream(completion), {"Content-Type": "text/event-stream"}
+                    except Exception as ex:  # noqa: BLE001 -- a responder bug is an HTTP 500 (a failed request), not a dead thread
+                        status = 500
+                        body = json.dumps({"error": {"message": f"responder: {type(ex).__name__}: {ex}"}}).encode()
                     else:
-                        body, headers = json.dumps(completion).encode(), {"Content-Type": "application/json"}
-                    status = 200
+                        if is_responses_request(request):
+                            body = json.dumps(chat_completion_as_responses(completion)).encode()
+                        elif request.get("stream"):
+                            body, headers = _as_stream(completion), {"Content-Type": "text/event-stream"}
+                        else:
+                            body = json.dumps(completion).encode()
                 else:
                     status, body, headers = self._forward("POST", raw)
                     headers = {k: headers[k] for k in _KEEP_RESPONSE_HEADERS if k in headers}
@@ -314,7 +322,7 @@ class Meter:
                         model = json.loads(raw or b"{}").get("model") or ""
                     except ValueError:
                         model = ""
-                    meter._record(status, body, headers, model)
+                    meter._record(status, body, headers, model, raw or b"")
                 self._reply(status, body, headers)
 
         return Handler

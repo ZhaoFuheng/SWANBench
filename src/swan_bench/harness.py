@@ -3,13 +3,19 @@
 For each question, the gold query runs on the ORIGINAL database and the question's AISQL query, through
 the system, on the MASKED one; `quality.py` scores the answer (quality, and the 2024 exact match). A query
 that raises scores 0. The system's LLM traffic goes through a `Meter`, so calls, tokens, cost and latency
-are measured the same way for every system. Questions run one at a time.
+are measured the same way for every system. Questions run one at a time. A system that answers a failed model
+call with a default of its own instead of raising (`answers_failed_calls`: Sema returns false or an empty string)
+gets an error for a question during which a request never got an answer.
 
 Output, under `runs/<system>/<tag>/`:
 - `queries.jsonl`: one record per question, appended as soon as it finishes. A rerun skips the questions
   already recorded, so an interrupted run resumes; `--retry-errors` reruns the questions that raised
   (a later record replaces an earlier one); `--rerun` starts over.
-- `scores.json`: per-database and overall quality, exact-match counts and totals, rebuilt from `queries.jsonl`.
+- `scores.json`: the run's model and options, then per-database and overall quality, exact-match counts and
+  totals, rebuilt from `queries.jsonl`.
+
+A run directory holds one configuration: a run with another model or other options stops before it runs anything
+(use another `--tag`, or `--rerun`), so the questions under one `scores.json` were all answered the way it says.
 """
 
 import json
@@ -50,7 +56,7 @@ def _read_records(path) -> dict:
 #: rows kept per answer in queries.jsonl (enough for every gold answer, so `rescore` can recompute scores)
 MAX_STORED_ROWS = 5000
 
-SUMMED = ("requests", "fresh_calls", "errors", "prompt_tokens", "completion_tokens", "reasoning_tokens",
+SUMMED = ("requests", "fresh_calls", "errors", "unanswered", "prompt_tokens", "completion_tokens", "reasoning_tokens",
           "cost_usd", "seconds")
 
 
@@ -106,6 +112,23 @@ def rescore(system_name: str, tag: str) -> dict:
     return write_scores(run_dir, meta)
 
 
+#: options that say where a system's files are on this machine, not how the questions were answered
+PATH_OPTIONS = ("duckdb_bin", "plop_bin", "sema_bin", "palimpzest_python", "thalamusdb_python")
+
+
+def other_configuration(saved: dict, meta: dict) -> str | None:
+    """Why the answers under a `scores.json` (`saved`) cannot be continued by a run with `meta`: they were recorded
+    with another model or other options. None when they can, or when `saved` does not say."""
+    saved, meta = (json.loads(json.dumps(m, default=str)) for m in (saved, meta))  # compare what a file would hold
+    if saved.get("model") not in (None, meta["model"]):
+        return f"model {saved['model']} (this run: {meta['model']})"
+    if "options" not in saved:
+        return None
+    old, new = saved["options"], meta["options"]
+    differ = sorted(k for k in set(old) | set(new) if k not in PATH_OPTIONS and old.get(k) != new.get(k))
+    return ", ".join(f"{k} {old.get(k)!r} (this run: {new.get(k)!r})" for k in differ) or None
+
+
 def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATABASES, qids=None,
         tag: str | None = None, rerun: bool = False, retry_errors: bool = False, budget: float | None = None,
         **options) -> dict:
@@ -116,17 +139,24 @@ def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATA
     if rerun:
         log.unlink(missing_ok=True)
     done = _read_records(log)
+    meta = {"system": system_name, "model": model, "endpoint": endpoint,
+            "options": {k: v for k, v in options.items() if k not in ("api_key",)}}
+    scores = run_dir / "scores.json"
+    why = other_configuration(json.loads(scores.read_text()), meta) if done and scores.is_file() else None
+    if why:
+        raise SystemExit(f"{run_dir.relative_to(paths.ROOT)} holds answers recorded with {why}: nothing run. "
+                         "Use another --tag, or --rerun to start this one over (an option this version no longer "
+                         "has counts as another configuration)")
     if retry_errors:
         done = {qid: r for qid, r in done.items() if r["error"] is None}
     questions = [q for db in databases for q in load_questions(db) if not qids or q.qid in qids]
     todo = [q for q in questions if q.qid not in done]
     print(f"{system_name}: {len(todo)} to run, {len(questions) - len(todo)} already in {log.relative_to(paths.ROOT)}",
           flush=True)
-    meta = {"system": system_name, "model": model, "endpoint": endpoint,
-            "options": {k: v for k, v in options.items() if k not in ("api_key",)}}
     spend0 = _proxy_spend(endpoint)
     with Meter(endpoint) as meter:
         system = system_cls(model, meter.url, **options)
+        write_scores(run_dir, meta)  # the configuration is on disk before the first answer: an interrupted run keeps it
         for q in todo:
             if budget is not None and spend0 is not None:
                 spent = (_proxy_spend(endpoint) or 0.0) - spend0
@@ -152,6 +182,10 @@ def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATA
                 record["error"] = f"{type(ex).__name__}: {ex}"[:1000]
             record["seconds"] = round(time.time() - start, 2)
             record.update(meter.snapshot())
+            if record["error"] is None and record["unanswered"] and getattr(system, "answers_failed_calls", False):
+                # the system put its own default where a model answer is missing and returned rows all the same
+                record.update(error=f"{record['unanswered']} model request(s) never got an answer; {system_name} fills "
+                                    "in a default for each, so these rows are not its answer", match=False, quality=0.0)
             misses1 = meter.upstream_misses()
             record["fresh_calls"] = misses1 - misses0 if misses0 is not None and misses1 is not None else None
             if hasattr(system, "last_usage"):
@@ -161,8 +195,9 @@ def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATA
                 f.write(json.dumps(record, default=str) + "\n")
             verdict = (f"quality {record['quality']:.2f}" + (" (exact)" if record["match"] else "")
                        if not record["error"] else "ERROR " + record["error"][:80])
+            failed = f" failed_requests={record['errors']}" if record["errors"] else ""
             print(f"{q.qid:24} {record['seconds']:8.1f}s calls={record['requests']:6} "
-                  f"fresh={record['fresh_calls']!s:>6} ${record['cost_usd']:.4f}  {verdict}", flush=True)
+                  f"fresh={record['fresh_calls']!s:>6}{failed} ${record['cost_usd']:.4f}  {verdict}", flush=True)
         if hasattr(system, "close"):
             system.close()
     report = write_scores(run_dir, meta)

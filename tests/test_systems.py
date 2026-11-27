@@ -6,7 +6,8 @@ import pytest
 
 from swan_bench import paths
 from swan_bench.data import load_query, load_questions
-from swan_bench.systems.aisql import _json_rows, duckdb_type
+from swan_bench.systems import aisql as aisql_adapter
+from swan_bench.systems.aisql import _json_rows, duckdb_type, ensure_duckdb
 from swan_bench.systems.blendsql import _zero_shot
 from swan_bench.lotus_exec import rows_of
 
@@ -23,6 +24,40 @@ def test_duplicate_column_names_survive_json(tmp_path):
     assert _json_rows(out) == [("a", "b", 1)]
     (tmp_path / "empty.json").write_text("")
     assert _json_rows(tmp_path / "empty.json") == []
+
+
+def _masked_or_skip(db):
+    if not paths.database_path(db, masked=True).is_file():
+        pytest.skip("run `swan-bench prepare` first")
+
+
+def test_an_interrupted_conversion_leaves_no_database(tmp_path, monkeypatch):
+    _masked_or_skip("superhero")
+    target = tmp_path / "superhero.duckdb"
+
+    def interrupted(args, **kwargs):  # the shell had started writing its file (the last argument) when Ctrl-C came
+        open(args[-1], "w").write("half a database")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(aisql_adapter.subprocess, "run", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        ensure_duckdb("superhero", "duckdb", target=target)
+    assert list(tmp_path.glob("superhero.duckdb*")) == []  # nothing a later run could take as converted
+
+
+def test_a_failed_conversion_leaves_no_database(tmp_path):
+    _masked_or_skip("superhero")
+    target = tmp_path / "superhero.duckdb"
+    shell = tmp_path / "shell"  # a stand-in for a DuckDB shell that dies after it started writing its file
+    shell.write_text('#!/bin/sh\nfor last; do :; done\necho partial > "$last"\nexit 1\n')
+    shell.chmod(0o755)
+    with pytest.raises(RuntimeError, match="failed"):
+        ensure_duckdb("superhero", str(shell), target=target)
+    assert list(tmp_path.glob("superhero.duckdb*")) == []
+    shell.write_text('#!/bin/sh\nfor last; do :; done\ncase " $* " in *" -bail "*) echo incomplete > "$last";; esac\nexit 0\n')
+    with pytest.raises(RuntimeError, match="lost rows"):  # it exits cleanly, but the tables are not in the file
+        ensure_duckdb("superhero", str(shell), target=target)
+    assert list(tmp_path.glob("superhero.duckdb*")) == []
 
 
 def test_lotus_results_become_plain_rows():
