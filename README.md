@@ -6,7 +6,7 @@ have been removed from the database. A system must recover the missing values wi
 with SQL.
 
 SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question has one query in AISQL
-(DuckDB SQL with `ai_filter`, `ai_classify`, `ai_complete` and `ai_agg`), and six systems run it:
+(DuckDB SQL with `ai_filter`, `ai_classify`, `ai_complete` and `ai_agg`), and seven systems run it:
 
 - **SWAN-AISQL**, DuckDB with the `aisql` extension, runs it as written.
 - **BlendSQL** ([parkervg/blendsql](https://github.com/parkervg/blendsql)) runs an automatic translation.
@@ -27,6 +27,10 @@ SWAN 2.0 also measures how well a system **plans** its LLM calls. Each question 
   does, in written order, with every
   AI call handed to Palimpzest as a semantic operator it plans. It runs in its own environment:
   `scripts/setup_palimpzest.sh`.
+- **Sema** (the authors' DuckDB fork, [BITQiKangK/Sema](https://github.com/BITQiKangK/Sema)) runs an automatic
+  translation into its `s'...'` dialect at its default settings, which ask one row per request for a lone
+  filter or map. `--sema-bin` names the fork's shell, built by SWAN-AISQL's `aisql-bench/setup_sema.sh`
+  (pinned commit, plus `sema_fork.patch` for macOS and for the 20-request cap every system gets).
 
 The questions give a planner choices (LIMITs, several AI filters, AI calls through joins, ...), and the
 databases repeat each entity about twice. docs/SWAN2_DESIGN.md explains the design and lists every knob.
@@ -56,8 +60,8 @@ proxy and, for SWAN-AISQL itself, its binary and embedding server), then the que
 
 Arguments go to `swan-bench run`: `--qid` and `--db` pick questions, `--stub` runs with a local stand-in
 instead of a model (free, no key, no servers; its answers are meaningless). Results go to
-`runs/<system>/<model>/`. PLOP, ThalamusDB and Palimpzest have no script: PLOP needs its fork built and named
-with `--plop-bin`, and the other two need their own Python environments (`scripts/setup_thalamusdb.sh`, `scripts/setup_palimpzest.sh`);
+`runs/<system>/<model>/`. PLOP, Sema, ThalamusDB and Palimpzest have no script: PLOP and Sema need their forks
+built and named with `--plop-bin` / `--sema-bin`, and the other two need their own Python environments (`scripts/setup_thalamusdb.sh`, `scripts/setup_palimpzest.sh`);
 run them as in step 5 below.
 
 **The cache proxy** records every answer with its cost and latency, and replays them when the same request
@@ -130,6 +134,7 @@ uv run swan-bench run --system aisql
 uv run swan-bench run --system blendsql
 uv run swan-bench run --system lotus
 uv run swan-bench run --system plop --plop-bin /path/to/morrila/duckdb --duckdb-bin "$SWAN_AISQL_DUCKDB"
+uv run swan-bench run --system sema --sema-bin /path/to/Sema/build/release/duckdb
 scripts/setup_thalamusdb.sh && uv run swan-bench run --system thalamusdb --duckdb-bin "$SWAN_AISQL_DUCKDB"
 scripts/setup_palimpzest.sh && uv run swan-bench run --system palimpzest
 uv run swan-bench report
@@ -138,7 +143,8 @@ uv run swan-bench report
 - Each question prints its time, LLM calls, cost and quality. `queries.jsonl` holds each question's answer
   and counts, and `scores.json` the totals per database.
 - An interrupted run resumes where it stopped. `--retry-errors` reruns the questions that failed, and
-  `--rerun` starts over.
+  `--rerun` starts over. A run directory holds one configuration: a run with another model or other options
+  stops before it runs anything, so give it its own `--tag`.
 - `--model` (default `gpt-5.6-luna`), `--endpoint`, `--concurrency` (default 20, for every system),
   `--budget`, `--set` and the other options are in the knobs table of docs/SWAN2_DESIGN.md.
 
@@ -166,13 +172,13 @@ mean over the supported questions.
 
 ## Results
 
-`results/gpt-5.6-luna/` holds the six systems' answers, scores and seconds on gpt-5.6-luna, replayed from
+`results/gpt-5.6-luna/` holds the seven systems' answers, scores and seconds on gpt-5.6-luna, replayed from
 the published cache on one machine (a MacBook Air M5, November 2026; the protocol is in that folder's README):
 mean quality 0.777 for SWAN-AISQL at 18,548 LLM calls and 1,673 s over the
 120 questions, 0.761 for BlendSQL at 59,620 calls and 4,958 s, 0.752 for LOTUS at 69,204 calls and
 4,026 s, 0.698 for PLOP at 25,639 calls and 10,208 s, 0.778 for Palimpzest (Abacus optimizer) at 70,925
-calls and 5,202 s, and 0.403 for ThalamusDB (0.700 on the 69 questions its filter-only dialect expresses) at
-160,525 calls and 24,729 s. The model's verdicts bound the
+calls and 5,202 s, 0.757 for Sema at 57,005 calls and 3,256 s, and 0.403 for ThalamusDB (0.700 on the 69
+questions its filter-only dialect expresses) at 160,525 calls and 24,729 s. The model's verdicts bound the
 quality column (that folder's README gives the earlier recordings); calls, cost and latency are the
 separation.
 SWAN 1.x results are in `swan1/results/`.
@@ -205,10 +211,10 @@ Adding or editing a question: docs/SWAN2_AUTHORING.md.
 ```
 scripts/                 run_swan_aisql.sh, run_blendsql.sh, run_lotus.sh, setup_thalamusdb.sh, setup_palimpzest.sh
 src/swan_bench/          the benchmark: database build, AISQL language, translators, meter, runner, scoring
-src/swan_bench/systems/  one adapter per system (SWAN-AISQL, BlendSQL, LOTUS, PLOP, ThalamusDB, Palimpzest)
+src/swan_bench/systems/  one adapter per system (SWAN-AISQL, BlendSQL, LOTUS, PLOP, ThalamusDB, Palimpzest, Sema)
 queries/                 the AISQL and oracle queries
 swan1/                   SWAN 1.x: its questions, per-system queries, results and the 2024 migration scripts
-results/gpt-5.6-luna/    SWAN 2.0 answers and scores for the six systems
+results/gpt-5.6-luna/    SWAN 2.0 answers and scores for the seven systems
 results/blendsql_2024/   the 2024 BlendSQL logs (5-shot logs in Git LFS)
 docs/                    SWAN2_DESIGN.md, SWAN2_AUTHORING.md
 ```
