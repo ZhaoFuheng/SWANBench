@@ -5,7 +5,8 @@ the system, on the MASKED one; `quality.py` scores the answer (quality, and the 
 that raises scores 0. The system's LLM traffic goes through a `Meter`, so calls, tokens, cost and latency
 are measured the same way for every system. Questions run one at a time. A system that answers a failed model
 call with a default of its own instead of raising (`answers_failed_calls`: Sema returns false or an empty string)
-gets an error for a question during which a request never got an answer.
+gets an error for a question during which a model request failed: a request that failed may have been retried and
+answered, but when two rows send the same text a call that failed for good cannot be told from a retried one.
 
 Output, under `runs/<system>/<tag>/`:
 - `queries.jsonl`: one record per question, appended as soon as it finishes. A rerun skips the questions
@@ -182,10 +183,13 @@ def run(system_name: str, model: str, endpoint: str | None, databases=paths.DATA
                 record["error"] = f"{type(ex).__name__}: {ex}"[:1000]
             record["seconds"] = round(time.time() - start, 2)
             record.update(meter.snapshot())
-            if record["error"] is None and record["unanswered"] and getattr(system, "answers_failed_calls", False):
-                # the system put its own default where a model answer is missing and returned rows all the same
-                record.update(error=f"{record['unanswered']} model request(s) never got an answer; {system_name} fills "
-                                    "in a default for each, so these rows are not its answer", match=False, quality=0.0)
+            if record["error"] is None and record["errors"] and getattr(system, "answers_failed_calls", False):
+                # the system puts its own default where a model answer is missing and returns rows all the same. Any
+                # failed request counts: `unanswered` sees only the texts no request got an answer for, and a failed
+                # call whose text another row also sent (and got answered) is not among them
+                record.update(error=f"{record['errors']} model request(s) failed ({record['unanswered']} request "
+                                    f"text(s) never got an answer); {system_name} fills in a default where an answer "
+                                    "is missing, so these rows may not be its answer", match=False, quality=0.0)
             misses1 = meter.upstream_misses()
             record["fresh_calls"] = misses1 - misses0 if misses0 is not None and misses1 is not None else None
             if hasattr(system, "last_usage"):

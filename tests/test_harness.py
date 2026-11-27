@@ -1,8 +1,10 @@
 """The run harness: a run directory holds the answers of one configuration."""
 
 import json
+import threading
 import urllib.error
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -48,6 +50,47 @@ class _Deaf(_Silent):
         except urllib.error.HTTPError:
             pass
         return []
+
+
+class _Twice(_Deaf):
+    """Asks the same thing for two rows of a question, as a system without deduplication does."""
+
+    def execute(self, question, query):
+        super().execute(question, query)
+        return super().execute(question, query)
+
+
+@pytest.fixture
+def answers_each_text_once():
+    """A model endpoint that answers the first request for a text and fails every later one with the same text."""
+    seen, lock = set(), threading.Lock()
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            self.send_response(404)
+            self.end_headers()
+
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            with lock:
+                first = body not in seen
+                seen.add(body)
+            reply = json.dumps({"choices": [{"message": {"role": "assistant", "content": "true"}}], "usage": {}}
+                               if first else {"error": {"message": "down"}}).encode()
+            self.send_response(200 if first else 500)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(reply)))
+            self.end_headers()
+            self.wfile.write(reply)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()
+    server.server_close()
 
 
 @pytest.fixture
@@ -125,6 +168,18 @@ def test_an_unanswered_request_is_an_error_for_a_system_that_fills_in_a_default(
     else:  # a system that raises on a failed call has already reported it
         assert all(r["error"] is None for r in records)
     assert report["overall"]["unanswered"] == 2
+
+
+def test_a_failed_request_is_an_error_even_when_another_row_got_the_same_text_answered(run, monkeypatch,
+                                                                                     answers_each_text_once):
+    monkeypatch.setattr(_Twice, "answers_failed_calls", True, raising=False)
+    run.system["class"] = _Twice
+    report = run(endpoint=answers_each_text_once)
+    records = [json.loads(line) for line in _records(run).splitlines()]
+    # one row's request was answered and the other's failed: no request text is left without an answer, yet a row is
+    assert all((r["requests"], r["errors"], r["unanswered"]) == (2, 1, 0) for r in records)
+    assert all("1 model request(s) failed" in r["error"] and r["quality"] == 0.0 for r in records)
+    assert report["overall"]["failed"] == 2 and report["overall"]["unanswered"] == 0
 
 
 def test_configurations_are_compared_on_what_a_file_holds():

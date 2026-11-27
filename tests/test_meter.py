@@ -36,7 +36,9 @@ def test_stub_meter_answers_and_counts():
         assert meter.snapshot()["requests"] == 0
 
 
-def test_a_request_no_attempt_of_which_succeeded_is_counted_as_unanswered():
+def test_unanswered_counts_the_texts_no_request_got_an_answer_for():
+    # a lower bound on the calls without an answer: "flaky" below is one call that was retried, and would look the
+    # same if it were two calls with the same text of which one failed for good (the harness therefore goes by errors)
     attempts = {}
 
     def responder(body):  # "flaky" fails once and then answers, "down" never answers
@@ -58,7 +60,7 @@ def test_a_request_no_attempt_of_which_succeeded_is_counted_as_unanswered():
     with Meter(None, responder=responder) as meter:
         assert [ask(meter, t) for t in ("fine", "flaky", "flaky", "down", "down")] == [200, 500, 200, 500, 500]
         counts = meter.snapshot()
-        assert (counts["requests"], counts["errors"], counts["unanswered"]) == (5, 3, 1)  # the retried one was answered
+        assert (counts["requests"], counts["errors"], counts["unanswered"]) == (5, 3, 1)  # only "down" for certain
         meter.reset()
         assert meter.snapshot()["unanswered"] == 0
 

@@ -45,6 +45,20 @@ def test_other_classify_in_where_stays_a_map_computed_in_the_from_clause():
                    "AND s'Is it big? {t.name}' AND t.size < u.size LIMIT 5")
 
 
+def test_the_rewritten_where_keeps_its_groups():
+    # (a OR b) is one condition of the WHERE: without its parentheses a row of another label with t.x = 2 would pass
+    out = to_sema(f"SELECT t.name FROM t INNER JOIN u ON u.id = t.id WHERE {CLASSIFY} = 'red' AND (u.x = 1 OR t.x = 2)")
+    assert out == (f"SELECT t.name FROM (SELECT t.*, {MAP} AS sema_label_0 FROM t) AS t INNER JOIN u ON u.id = t.id "
+                   "WHERE t.sema_label_0 = 'red' AND (u.x = 1 OR t.x = 2)")
+    # a group on the classify's own table moves below the map as a group; one with an AI call stays where it is
+    out = to_sema("SELECT t.name FROM t INNER JOIN u ON u.id = t.id WHERE (u.x = 1 OR t.x = 2) AND "
+                  f"({CLASSIFY} = 'red') AND t.y > 0 AND (t.x = 1 OR t.y = 2) AND NOT (u.a = 1 OR u.b = 2) "
+                  f"AND (t.z = 3 OR {FILTER})")
+    assert out == (f"SELECT t.name FROM (SELECT t.*, {MAP} AS sema_label_0 FROM t WHERE t.y > 0 AND (t.x = 1 OR t.y = 2)) "
+                   "AS t INNER JOIN u ON u.id = t.id WHERE (u.x = 1 OR t.x = 2) AND t.sema_label_0 = 'red' AND "
+                   "NOT (u.a = 1 OR u.b = 2) AND (t.z = 3 OR s'Is it big? {t.name}')")
+
+
 def test_classify_outside_where_is_a_trimmed_map_with_resolved_labels():
     out = to_sema("SELECT ai_classify('Which colour? name: ' || t.name, (SELECT list(DISTINCT c ORDER BY c) FROM u)) FROM t",
                   lambda table, column: ["green", "red"] if (table, column) == ("u", "c") else [])

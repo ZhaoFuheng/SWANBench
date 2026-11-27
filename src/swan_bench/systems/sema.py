@@ -36,7 +36,7 @@ def sema_duckdb_path(db: str) -> Path:
 class SemaSystem:
     name = "sema"
     #: Sema turns a request that failed into false (a filter) or an empty string (a map) and still exits 0, so the
-    #: harness records an error for a question during which the meter saw a request get no answer
+    #: harness records an error for a question during which the meter saw a model request fail
     answers_failed_calls = True
 
     def __init__(self, model: str, endpoint: str | None, sema_bin: str | None = None, concurrency: int = 20,

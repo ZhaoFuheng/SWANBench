@@ -33,7 +33,6 @@ An apostrophe cannot stand inside `s'...'` (Sema keeps a doubled one as two char
 text carries the typographic one (’), and a classify answer is mapped back, so a label is returned as the database
 spells it.
 """
-from functools import reduce
 from typing import Callable
 
 from sqlglot import exp
@@ -81,7 +80,8 @@ def _has_ai_call(node: exp.Expression) -> bool:
 
 
 def _conjuncts(node: exp.Expression) -> list[exp.Expression]:
-    return list(node.flatten()) if isinstance(node, exp.And) else [node]
+    """The conditions a WHERE joins with AND, each as it is written: a parenthesized group stays one condition."""
+    return list(node.flatten(unnest=False)) if isinstance(node, exp.And) else [node]
 
 
 def _label_from_the_from_clause(cmp: exp.EQ, call, placeholder: exp.Expression, n: int) -> None:  # n: such rewrites so far
@@ -117,7 +117,7 @@ def _label_from_the_from_clause(cmp: exp.EQ, call, placeholder: exp.Expression, 
         inner = inner.where(c.copy())
     label = exp.EQ(this=exp.column(column, table=alias), expression=exp.Literal.string(_target(cmp, call).this))
     kept = [label if c.unnest() is cmp else c for c in conjuncts if not any(c is m for m in moved)]
-    where.set("this", reduce(lambda a, b: exp.And(this=a, expression=b), kept))
+    where.set("this", exp.and_(*kept, copy=False))  # and_ keeps a group such as (a OR b) in its parentheses
     table.replace(exp.Subquery(this=inner, alias=exp.TableAlias(this=exp.to_identifier(alias))))
 
 

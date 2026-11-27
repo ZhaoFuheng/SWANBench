@@ -12,8 +12,10 @@ priced from the token usage in its last chunk with `PRICES`, which are litellm's
 call (`/systemone`, which SWAN-AISQL sends for `ai_filter` / `ai_classify` under `SET ai_typesafe`) counts as a
 request too: its `usage` has the Responses shape and it carries no cost header, so it is priced with `PRICES`.
 The runner reads and resets the counters around each query. `errors` counts every failed attempt, including one
-the system then retried successfully; `unanswered` counts the distinct requests that never got an answer at all
-(no attempt with the same body succeeded), which is what tells a result built on a missing answer from a clean one.
+the system then retried successfully; `unanswered` counts the request bodies no attempt of which succeeded, which
+certainly got no answer. That is a lower bound: when two calls send the same body, one that failed for good cannot
+be told on the wire from one that was retried, so a result that must not rest on a missing answer has to treat any
+failed attempt as one (the harness does, for a system that fills in a default of its own).
 
 With `upstream=None` the meter answers every chat or Responses request itself with a deterministic 'True'
 or 'False'.
