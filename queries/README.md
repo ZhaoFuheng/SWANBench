@@ -4,7 +4,7 @@ Every SWAN 2.0 question has two queries here:
 
 | directory | what | runs on |
 |---|---|---|
-| `aisql/<qid>.sql` | the question's query, in DuckDB SQL with AI functions; **every system runs it** (BlendSQL, LOTUS, PLOP, ThalamusDB and Palimpzest through mechanical translations or the written-order executor) | the masked database |
+| `aisql/<qid>.sql` | the question's query, in DuckDB SQL with AI functions; **every system runs it** (BlendSQL, LOTUS, PLOP, ThalamusDB, Palimpzest and Sema through mechanical translations or the written-order executor) | the masked database |
 | `oracle/<qid>.sql` | the same query with each AI call replaced by the true hidden value; it returns the gold answer | the original database |
 
 The rules for writing them are in `docs/SWAN2_AUTHORING.md`. `swan-bench lint` checks the prompt form, and

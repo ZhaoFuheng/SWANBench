@@ -10,10 +10,10 @@ prompt. The recordings are fresh runs
 through an empty cache: LOTUS 1.2.4 and PLOP (Morrila, DP cost-model mode) in one session on 2026-10-03;
 ThalamusDB 0.1.15 (exact mode) on 2026-10-03/04 (formula_1-22 and european_football_2-05 re-recorded on
 2026-10-28 after the runner fix below); BlendSQL 0.1.27 and Palimpzest 1.5.3 (Abacus optimizer) on 2026-10-05;
-SWAN-AISQL on 2026-10-23 (DuckDB 2.0.0, `ai_api = auto`). Sema (commit a86cb62, its default settings) was
-recorded on 2026-11-26, when the cache held none of its prompts. A prompt that a later run reached for the first
-time was added when it occurred, the last on 2026-11-13; a prompt SWAN-AISQL's 2026-10-23 run did not ask keeps its
-most recent earlier recording. Quality is defined in the repository README. Per system,
+SWAN-AISQL on 2026-10-23 (DuckDB 2.0.0, `ai_api = auto`); Sema (commit a86cb62) on 2026-11-26. A prompt that a
+later run reached for the first time was added when it occurred, the last on 2026-11-13; a prompt SWAN-AISQL's
+2026-10-23 run did not ask keeps its most recent earlier recording. Quality is defined in the repository README.
+Per system,
 `answers.jsonl` holds each question's answer, calls, tokens, cost and seconds, and `scores.json` the totals per
 database.
 

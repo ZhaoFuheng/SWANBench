@@ -1,5 +1,5 @@
 """The systems under test. Each runs the question's AISQL query on the MASKED database and returns rows:
-SWAN-AISQL as written, BlendSQL, LOTUS, PLOP, ThalamusDB and Palimpzest through their mechanical translations.
+SWAN-AISQL as written, BlendSQL, LOTUS, PLOP, ThalamusDB, Palimpzest and Sema through their mechanical translations.
 
 A system is a class with a `name` (its directory under `runs/`), a constructor taking the model name, the
 OpenAI-compatible endpoint the runner hands it (the meter) and keyword options (`api_key`, `concurrency`,
