@@ -4,6 +4,7 @@ import json
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -33,6 +34,35 @@ def test_stub_meter_answers_and_counts():
         assert meter.snapshot()["requests"] == 1
         meter.reset()
         assert meter.snapshot()["requests"] == 0
+
+
+def test_unanswered_counts_the_texts_no_request_got_an_answer_for():
+    # a lower bound on the calls without an answer: "flaky" below is one call that was retried, and would look the
+    # same if it were two calls with the same text of which one failed for good (the harness therefore goes by errors)
+    attempts = {}
+
+    def responder(body):  # "flaky" fails once and then answers, "down" never answers
+        text = body["messages"][0]["content"]
+        attempts[text] = attempts.get(text, 0) + 1
+        if text == "down" or (text == "flaky" and attempts[text] == 1):
+            raise RuntimeError("no answer")
+        return "True"
+
+    def ask(meter, text):
+        req = urllib.request.Request(meter.url + "/v1/chat/completions", method="POST",
+                                     data=json.dumps({"model": "m", "messages": [{"role": "user", "content": text}]}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        try:
+            return urllib.request.urlopen(req).status
+        except urllib.error.HTTPError as e:
+            return e.code
+
+    with Meter(None, responder=responder) as meter:
+        assert [ask(meter, t) for t in ("fine", "flaky", "flaky", "down", "down")] == [200, 500, 200, 500, 500]
+        counts = meter.snapshot()
+        assert (counts["requests"], counts["errors"], counts["unanswered"]) == (5, 3, 1)  # only "down" for certain
+        meter.reset()
+        assert meter.snapshot()["unanswered"] == 0
 
 
 RESPONSES_USAGE = {"input_tokens": 1000, "input_tokens_details": {"cached_tokens": 500}, "output_tokens": 100,

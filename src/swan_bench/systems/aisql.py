@@ -40,46 +40,57 @@ def duckdb_path(db: str) -> Path:
 #: DuckDB 2.0's shell turns on an "agent mode" (output truncated to 1,000 rows / 10,000 bytes) when the environment
 #: carries an AI coding agent's marker (AI_AGENT, AGENT, ...) and stdout is a pipe: every CLI we spawn pins it off.
 _NO_AGENT_ENV = {**os.environ, "DUCKDB_AGENT_MODE": "0"}
+#: the conversion runs without ~/.duckdbrc, whose statements a shell runs before anything it is given
+_NO_RC = ("-init", os.devnull)
 
-def ensure_duckdb(db: str, duckdb_bin: str, force: bool = False) -> Path:
-    target = duckdb_path(db)
+def ensure_duckdb(db: str, duckdb_bin: str, force: bool = False, target: Path | None = None) -> Path:
+    """The masked database as a DuckDB file written by `duckdb_bin` (its storage version), at `target`
+    (default `duckdb_path(db)`), with the same column types whichever DuckDB build writes it. The file is written
+    under a temporary name and renamed once its row counts match the source, so a failed or interrupted conversion
+    never leaves a file that a later run would take as converted."""
+    target = target or duckdb_path(db)
     source = paths.require_database(db, masked=True)
     if target.is_file() and not force and target.stat().st_mtime >= source.stat().st_mtime:
         return target
     target.unlink(missing_ok=True)
+    part = target.with_name(f"{target.name}.tmp{os.getpid()}")
     con = sqlite3.connect(source)
-    tables = [r[0] for r in con.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
-    counts = {}
-    with tempfile.TemporaryDirectory() as tmp:
-        script = []
-        for table in tables:
-            columns = [(r[1], r[2]) for r in con.execute(f"PRAGMA table_info({_quote(table)})")]
-            file = Path(tmp) / f"{len(script)}.csv"
-            with open(file, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow([c for c, _ in columns])
-                n = 0
-                for row in con.execute(f"SELECT * FROM {_quote(table)}"):
-                    writer.writerow([NULL if v is None else v for v in row])
-                    n += 1
-            counts[table] = n
-            cols = ", ".join(f"{_quote(c)} {duckdb_type(t)}" for c, t in columns)
-            script.append(f"CREATE TABLE {_quote(table)} ({cols});\n"
-                          f"COPY {_quote(table)} FROM '{file}' (HEADER, NULL '{NULL}', QUOTE '\"', ESCAPE '\"');")
-        p = subprocess.run([duckdb_bin, "-bail", str(target)], input="\n".join(script), text=True, env=_NO_AGENT_ENV,
-                           capture_output=True)
-        if p.returncode != 0:
-            target.unlink(missing_ok=True)
-            raise RuntimeError(f"converting {db} to DuckDB failed: {p.stderr.strip()[-500:]}")
-    con.close()
-    check = "\n".join(f"SELECT '{t}', count(*) FROM {_quote(t)};" for t in tables)
-    p = subprocess.run([duckdb_bin, "-readonly", "-csv", "-noheader", str(target)], input=check, text=True, env=_NO_AGENT_ENV,
-                       capture_output=True)
-    got = {line.split(",")[0]: int(line.split(",")[1]) for line in p.stdout.split()}
-    if got != counts:
-        target.unlink(missing_ok=True)
-        raise RuntimeError(f"converting {db} to DuckDB lost rows: {counts} vs {got}")
+    try:
+        tables = [r[0] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+        counts = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            script = []
+            for table in tables:
+                columns = [(r[1], r[2]) for r in con.execute(f"PRAGMA table_info({_quote(table)})")]
+                file = Path(tmp) / f"{len(script)}.csv"
+                with open(file, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow([c for c, _ in columns])
+                    n = 0
+                    for row in con.execute(f"SELECT * FROM {_quote(table)}"):
+                        writer.writerow([NULL if v is None else v for v in row])
+                        n += 1
+                counts[table] = n
+                cols = ", ".join(f"{_quote(c)} {duckdb_type(t)}" for c, t in columns)
+                script.append(f"CREATE TABLE {_quote(table)} ({cols});\n"
+                              f"COPY {_quote(table)} FROM '{file}' (HEADER, NULL '{NULL}', QUOTE '\"', ESCAPE '\"');")
+            script.append("CHECKPOINT;")  # everything is in the file itself before it is renamed (its WAL is not)
+            p = subprocess.run([duckdb_bin, *_NO_RC, "-bail", str(part)], input="\n".join(script), text=True,
+                               env=_NO_AGENT_ENV, capture_output=True)
+            if p.returncode != 0:
+                raise RuntimeError(f"converting {db} to DuckDB failed: {p.stderr.strip()[-500:]}")
+        check = "\n".join(f"SELECT '{t}', count(*) FROM {_quote(t)};" for t in tables)
+        p = subprocess.run([duckdb_bin, *_NO_RC, "-readonly", "-csv", "-noheader", str(part)], input=check, text=True,
+                           env=_NO_AGENT_ENV, capture_output=True)
+        got = {line.split(",")[0]: int(line.split(",")[1]) for line in p.stdout.split()}
+        if got != counts:
+            raise RuntimeError(f"converting {db} to DuckDB lost rows: {counts} vs {got}")
+        os.replace(part, target)
+    finally:
+        con.close()
+        for leftover in (part, part.with_name(part.name + ".wal")):
+            leftover.unlink(missing_ok=True)
     return target
 
 
